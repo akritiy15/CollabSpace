@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Mentor Profile Setup{% endblock %}
+{% block page_title %}Mentor Profile Setup{% endblock %}
+
+{% block content %}
+<div class="mentor-setup-form">
+    <h2 style="margin-top:0; margin-bottom: 8px; color: var(--color-navy)">Set Up Your Mentor Profile</h2>
+    <p style="color: var(--color-gray-dark); margin-bottom: 24px;">This helps personalize your mentor dashboard.</p>
+    
+    <form method="POST" action="{{ url_for('mentor.setup') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label for="department" style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Department</label>
+            <input type="text" id="department" name="department" value="{{ current_user.mentor_profile.department if current_user.mentor_profile else '' }}" placeholder="Computer Science" style="width:100%; padding:10px 12px; border:1px solid #E5E7EB; border-radius:8px; font-size:14px;" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label for="designation" style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Designation</label>
+            <input type="text" id="designation" name="designation" value="{{ current_user.mentor_profile.designation if current_user.mentor_profile else '' }}" placeholder="Assistant Professor" style="width:100%; padding:10px 12px; border:1px solid #E5E7EB; border-radius:8px; font-size:14px;" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 24px;">
+            <label for="max_students" style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;">Maximum Students</label>
+            <input type="number" id="max_students" name="max_students" value="{{ current_user.mentor_profile.max_students if current_user.mentor_profile else 10 }}" placeholder="10" min="1" max="100" style="width:100%; padding:10px 12px; border:1px solid #E5E7EB; border-radius:8px; font-size:14px;" required>
+            <div style="font-size:12px; color:var(--color-gray-dark); margin-top:6px;">How many students do you typically mentor?</div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width:100%;">Save Profile</button>
+    </form>
+</div>
+
+<div style="max-width: 500px; margin: 0 auto;">
+    <div style="background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px;">
+        <h4 style="margin-top:0; margin-bottom:12px; font-size:15px; color: var(--color-navy);"><i data-lucide="info" style="width:16px; height:16px; vertical-align:text-bottom; margin-right:6px;"></i>How to use Mentor Mode:</h4>
+        <ol style="margin:0; padding-left: 20px; color: var(--color-gray-dark); font-size:13px; line-height: 1.6;">
+            <li>Create a separate group for each student or student team.</li>
+            <li>You will automatically be set as Admin.</li>
+            <li>Invite students using the group invite code.</li>
+            <li>Track all projects from this dashboard.</li>
+            <li>Download reports at the end of the semester.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

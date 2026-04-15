@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Meeting Notes — {{ group.name }}{% endblock %}
+{% block page_title %}Meeting Notes{% endblock %}
+
+{% block top_actions %}
+<a href="{{ url_for('meetings.new', group_id=group.id) }}" class="btn btn-primary">
+    <i data-lucide="notebook"></i> New Meeting Notes
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not meeting_notes %}
+    <div class="card empty-state" style="text-align:center; padding: 60px 20px;">
+        <i data-lucide="notebook" style="width:48px; height:48px; color:var(--color-text-muted); margin-bottom:16px;"></i>
+        <h3 style="font-size:16px; font-weight:600; color:var(--color-text-primary); margin-bottom:8px;">No meeting notes yet</h3>
+        <p style="font-size:13px; color:var(--color-text-secondary); max-width:400px; margin:0 auto 24px;">
+            Paste your meeting notes and AI will automatically extract tasks for you.
+        </p>
+        <a href="{{ url_for('meetings.new', group_id=group.id) }}" class="btn btn-primary">Add First Meeting Notes</a>
+    </div>
+{% else %}
+    <div style="display:grid; gap:16px; grid-template-columns:1fr;">
+        {% for meeting in meeting_notes %}
+        <div class="card" style="padding:16px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:15px; font-weight:600; color:var(--color-navy); margin-bottom:4px;">{{ meeting.title }}</div>
+                <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:6px;">
+                    by {{ meeting.creator.username }} &middot; {{ meeting.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                </div>
+                <div style="font-size:12px; color:var(--color-text-secondary); font-style:italic; max-width:600px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ meeting.summary }}
+                </div>
+            </div>
+            <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                <div class="badge" style="background:#E0F2FE; color:#0284C7;">
+                    {{ meeting.tasks_extracted }} tasks extracted
+                </div>
+                <a href="{{ url_for('meetings.view', group_id=group.id, meeting_id=meeting.id) }}" class="btn btn-sm btn-secondary">
+                    View
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

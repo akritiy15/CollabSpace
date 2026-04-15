@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Profile - CollabSpace</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div id="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="toast toast-{{ category }}">
+                <div class="toast-content">{{ message }}</div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="auth-split-layout">
+        <!-- Branding Panel -->
+        <div class="auth-brand-panel">
+            <h1 class="auth-brand-title">CollabSpace</h1>
+            <p class="auth-brand-tagline">
+                Join thousands of teams getting more work done together. Easy, intuitive, and powerful.
+            </p>
+        </div>
+
+        <!-- Form Panel -->
+        <div class="auth-form-panel">
+            <div class="auth-form-container">
+                <h2 class="auth-title">Complete Your Profile</h2>
+                <div class="auth-divider" style="margin-bottom: 24px;">Please tell us about your role</div>
+
+                <form action="{{ url_for('auth.complete_profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="form-group" style="margin-top: 24px;">
+                        <label class="form-label" style="margin-bottom: 12px; display: block;">I am a:</label>
+                        <input type="hidden" name="account_type" id="account_type" value="student">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
+                            <div class="account-card" data-value="student" onclick="selectAccountType('student')" style="border: 2px solid var(--color-primary); background: rgba(74, 144, 164, 0.05); padding: 16px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                                <i data-lucide="graduation-cap" style="color: var(--color-primary); margin-bottom: 8px; width: 24px; height: 24px;"></i>
+                                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: var(--color-text-primary);">Student</div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4;">I am working on a project under a mentor's guidance</div>
+                            </div>
+                            
+                            <div class="account-card" data-value="mentor" onclick="selectAccountType('mentor')" style="border: 2px solid var(--color-border); background: var(--color-surface); padding: 16px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                                <i data-lucide="book-open" style="color: var(--color-text-secondary); margin-bottom: 8px; width: 24px; height: 24px;"></i>
+                                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: var(--color-text-primary);">Mentor</div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4;">I guide and evaluate student projects</div>
+                            </div>
+
+                            <div class="account-card" data-value="team_leader" onclick="selectAccountType('team_leader')" style="border: 2px solid var(--color-border); background: var(--color-surface); padding: 16px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                                <i data-lucide="users" style="color: var(--color-text-secondary); margin-bottom: 8px; width: 24px; height: 24px;"></i>
+                                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: var(--color-text-primary);">Team Leader</div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4;">I lead a team and manage project tasks</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                        Complete Setup
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+        function selectAccountType(type) {
+            document.getElementById('account_type').value = type;
+            document.querySelectorAll('.account-card').forEach(card => {
+                if (card.dataset.value === type) {
+                    card.style.borderColor = 'var(--color-primary)';
+                    card.style.background = 'rgba(74, 144, 164, 0.05)';
+                    card.querySelector('i').style.color = 'var(--color-primary)';
+                } else {
+                    card.style.borderColor = 'var(--color-border)';
+                    card.style.background = 'var(--color-surface)';
+                    card.querySelector('i').style.color = 'var(--color-text-secondary)';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

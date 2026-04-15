@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Report Preview — {{ group_name }}{% endblock %}
+{% block page_title %}Report Preview{% endblock %}
+
+{% block top_actions %}
+<a href="{{ url_for('reports.history', group_id=group.id) }}" class="btn btn-sm btn-secondary no-print">
+    <i data-lucide="clock"></i> Report History
+</a>
+<a href="{{ url_for('reports.download', group_id=group.id) }}" class="btn btn-sm btn-primary no-print" onclick="window.showToast('Generating PDF...', 'info')">
+    <i data-lucide="download"></i> Download PDF
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Report Global Styles */
+    .report-container { max-width: 1200px; margin: 0 auto; color: var(--color-text); }
+    .report-header { text-align: center; margin-bottom: 2rem; }
+    .report-title { font-size: 2.5rem; font-weight: 800; color: var(--color-primary-dark); margin-bottom: 0.5rem; }
+    .report-period { font-size: 1.1rem; color: var(--color-text-secondary); margin-bottom: 0.5rem; }
+    .report-meta { font-size: 0.9rem; color: var(--color-text-muted); }
+    
+    .section-title { font-size: 1.5rem; font-weight: 700; color: var(--color-primary-dark); margin-top: 2.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--color-border); padding-bottom: 0.5rem; }
+    
+    /* Summary Cards */
+    .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 1.5rem 1rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.2s; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+    .stat-value { font-size: 2.5rem; font-weight: 800; color: var(--color-primary); margin-bottom: 0.5rem; }
+    .stat-label { font-size: 0.9rem; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    /* Health Score */
+    .health-score-container { background: var(--color-surface); border-radius: 16px; padding: 2.5rem; text-align: center; border: 1px solid var(--color-border); box-shadow: 0 4px 12px rgba(0,0,0,0.03); max-width: 800px; margin: 0 auto 3rem; }
+    .health-score-container.Healthy { background: #F0FDF4; border-color: #16A34A; }
+    .health-score-container.At.Risk { background: #FEFCE8; border-color: #CA8A04; }
+    .health-score-container.Critical { background: #FEF2F2; border-color: #DC2626; }
+    .score-number { font-size: 5rem; font-weight: 900; line-height: 1; margin-bottom: 0.5rem; }
+    .score-Healthy { color: #16A34A; } .score-At.Risk { color: #CA8A04; } .score-Critical { color: #DC2626; }
+    .status-badge { display: inline-block; padding: 0.5rem 1.5rem; border-radius: 9999px; font-weight: 700; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2rem; }
+    .badge-Healthy { background: #16A34A; color: white; } .badge-At.Risk { background: #CA8A04; color: white; } .badge-Critical { background: #DC2626; color: white; }
+    .progress-bars { display: flex; flex-direction: column; gap: 1rem; text-align: left; max-width: 500px; margin: 0 auto; }
+    .progress-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.95rem; font-weight: 600; color: var(--color-text); }
+    .progress-track { flex-grow: 1; height: 12px; background: rgba(0,0,0,0.05); border-radius: 6px; margin: 0 1rem; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 6px; transition: width 1s ease-out; }
+    
+    /* Tables */
+    .report-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .report-table th, .report-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--color-border); }
+    .report-table th { background: var(--color-background); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+    .report-table tbody tr:hover { background: rgba(0,0,0,0.01); }
+    .report-table tbody tr.top-performer { border-left: 4px solid #EAB308; background: linear-gradient(90deg, rgba(234, 179, 8, 0.05) 0%, transparent 100%); }
+    
+    /* Badges & Pills */
+    .pill { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+    .pill.excellent { background: #DCFCE7; color: #16A34A; }
+    .pill.good { background: #DBEAFE; color: #2563EB; }
+    .pill.average { background: #FEF9C3; color: #CA8A04; }
+    .pill.needs.improvement, .pill.late, .pill.overdue { background: #FEE2E2; color: #DC2626; }
+    .pill.on.time { background: #DCFCE7; color: #16A34A; }
+    .pill.pending { background: #FEF9C3; color: #CA8A04; }
+    .pill.no.deadline { background: #F1F5F9; color: #64748B; }
+    
+    /* Filter Bar */
+    .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .filter-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .filter-btn.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+    
+    /* Attention Panels */
+    .attention-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .attention-panel { border-radius: 12px; padding: 1.5rem; border: 1px solid var(--color-border); }
+    .panel-overdue { background: #FEF2F2; border-color: #FECACA; }
+    .panel-risk { background: #FFFBEB; border-color: #FDE68A; }
+    .panel-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .panel-overdue .panel-title { color: #DC2626; } .panel-risk .panel-title { color: #D97706; }
+    .task-card { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .task-card-title { font-weight: 600; color: var(--color-text); margin-bottom: 0.5rem; }
+    .task-card-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--color-text-muted); align-items: center; }
+    
+    .all-good-panel { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 2rem; text-align: center; color: #16A34A; grid-column: 1 / -1; }
+    .all-good-panel i { margin-bottom: 0.5rem; }
+    
+    /* Activity Chart */
+    .css-chart { display: flex; flex-direction: column; gap: 1rem; }
+    .chart-row { display: flex; align-items: center; gap: 1rem; }
+    .chart-label { width: 150px; font-weight: 600; text-align: right; }
+    .chart-bar-wrap { flex-grow: 1; background: var(--color-background); height: 24px; border-radius: 4px; overflow: hidden; }
+    .chart-bar { height: 100%; background: var(--color-primary); border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 0.5rem; color: white; font-weight: bold; font-size: 0.8rem; }
+    
+    .positive-bal { color: #16A34A; font-weight: 600; }
+    .negative-bal { color: #DC2626; font-weight: 600; }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .report-container { max-width: 100%; }
+        .health-score-container, .attention-panel, .all-good-panel { border: 2px solid black; background: transparent !important; box-shadow: none; }
+        .score-number { color: black !important; }
+        .progress-track { border: 1px solid black; }
+        .progress-fill { background: black !important; }
+        .pill { border: 1px solid black; background: transparent !important; color: black !important; }
+        .chart-bar { background: black !important; color: white !important; -webkit-print-color-adjust: exact; }
+        .page-break { page-break-before: always; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+</style>
+
+<div class="report-container">
+
+    <!-- Header -->
+    <div class="report-header">
+        <div class="report-title">{{ group_name }}</div>
+        <div class="report-period">{{ overall.report_period_start }} — {{ overall.report_period_end }}</div>
+        <div class="report-meta">Generated by {{ generated_by.username }} on {{ generated_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+    </div>
+
+    <!-- Section 1 Health Score -->
+    <div class="health-score-container {{ health.status }}">
+        <div class="score-number score-{{ health.status }}">{{ health.score }}</div>
+        <div class="status-badge badge-{{ health.status }}">{{ health.status }}</div>
+        <div class="progress-bars">
+            <div class="progress-row">
+                <span>Completion Rate</span>
+                <div class="progress-track"><div class="progress-fill" style="width: {{ health.completion_rate }}%; background: #2563EB;"></div></div>
+                <span>{{ health.completion_rate }}%</span>
+            </div>
+            <div class="progress-row">
+                <span>On Time Rate</span>
+                <div class="progress-track"><div class="progress-fill" style="width: {{ health.on_time_rate }}%; background: #16A34A;"></div></div>
+                <span>{{ health.on_time_rate }}%</span>
+            </div>
+            <div class="progress-row">
+                <span>Participation</span>
+                <div class="progress-track"><div class="progress-fill" style="width: {{ health.participation_rate }}%; background: #9333EA;"></div></div>
+                <span>{{ health.participation_rate }}%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 Quick Stats -->
+    <div class="stat-cards">
+        <div class="stat-card">
+            <div class="stat-value">{{ overall.total_tasks }}</div>
+            <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #16A34A;">{{ overall.completed_tasks }}</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #CA8A04;">{{ overall.in_progress_tasks }}</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #DC2626;">{{ overall.tasks_overdue_count }}</div>
+            <div class="stat-label">Overdue</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ overall.total_members }}</div>
+            <div class="stat-label">Members</div>
+        </div>
+
+    </div>
+    
+    <div class="page-break"></div>
+
+    <!-- Section 3 Member Performance -->
+    <h3 class="section-title">Individual Member Performance</h3>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Member</th>
+                <th>Assigned</th>
+                <th>Completed</th>
+                <th>On Time</th>
+                <th>Late</th>
+                <th>Overdue</th>
+                <th>Rate</th>
+                <th>Avg Days</th>
+                <th>Grade</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mp in member_performance %}
+            <tr class="{% if loop.index == 1 and mp.completion_rate > 0 %}top-performer{% endif %}">
+                <td style="font-weight: 700;">{{ mp.user.username }}</td>
+                <td>{{ mp.assigned }}</td>
+                <td>{{ mp.completed }}</td>
+                <td>{{ mp.on_time }}</td>
+                <td>{{ mp.late }}</td>
+                <td style="{% if mp.overdue > 0 %}color: #DC2626; font-weight: bold;{% endif %}">{{ mp.overdue }}</td>
+                <td style="font-weight: bold;">{{ mp.completion_rate }}%</td>
+                <td>{{ mp.avg_days if mp.avg_days != None else '—' }}</td>
+                <td><span class="pill {{ mp.grade|lower }}">{{ mp.grade }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="page-break"></div>
+
+    <!-- Section 4 Task Timeline -->
+    <h3 class="section-title">Task Timeline & Deadline Analysis</h3>
+    <div class="filter-bar no-print" id="timeline-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="On Time">On Time</button>
+        <button class="filter-btn" data-filter="Late">Late</button>
+        <button class="filter-btn" data-filter="Overdue">Overdue</button>
+        <button class="filter-btn" data-filter="Pending">Pending</button>
+        <button class="filter-btn" data-filter="No Deadline">No Deadline</button>
+    </div>
+    <table class="report-table" id="timeline-table">
+        <thead>
+            <tr>
+                <th>Task Title</th>
+                <th>Assigned To</th>
+                <th>Created</th>
+                <th>Deadline</th>
+                <th>Completed On</th>
+                <th>Status</th>
+                <th>Variance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tt in task_timeline %}
+            <tr data-status="{{ tt.deadline_status }}">
+                <td style="font-weight: 600;">{{ tt.task.title }}</td>
+                <td>{{ tt.task.assignee.username if tt.task.assignee else '—' }}</td>
+                <td>{{ tt.task.created_at.strftime('%Y-%m-%d') if tt.task.created_at else '—' }}</td>
+                <td>{{ tt.task.deadline.strftime('%Y-%m-%d') if tt.task.deadline else '—' }}</td>
+                <td>{{ tt.task.completed_at.strftime('%Y-%m-%d') if tt.task.completed_at else '—' }}</td>
+                <td><span class="pill {{ tt.deadline_status|lower }}">{{ tt.deadline_status }}</span></td>
+                <td>
+                    {% if tt.days_variance != None %}
+                        {% if tt.days_variance > 0 %}
+                            <span class="pill excellent">+{{ tt.days_variance }} days early</span>
+                        {% elif tt.days_variance < 0 %}
+                            <span class="pill late">{{ tt.days_variance }} days late</span>
+                        {% else %}
+                            <span class="pill excellent">On Exact Day</span>
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not task_timeline %}
+                <tr><td colspan="7" style="text-align: center; color: var(--color-text-muted);">No tasks found.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- Section 5 Overdue & At Risk -->
+    <h3 class="section-title">Attention Required</h3>
+    <div class="attention-grid">
+        {% if not overdue_tasks and not at_risk_tasks %}
+        <div class="all-good-panel">
+            <i data-lucide="check-circle" style="width: 48px; height: 48px;"></i>
+            <h2>Everything is on track</h2>
+            <p>You have no overdue or at risk tasks.</p>
+        </div>
+        {% else %}
+            <!-- Left panel -->
+            <div class="attention-panel panel-overdue">
+                <div class="panel-title"><i data-lucide="alert-circle"></i> Overdue Tasks</div>
+                {% for od in overdue_tasks %}
+                <div class="task-card">
+                    <div class="task-card-title">{{ od.task.title }}</div>
+                    <div class="task-card-meta">
+                        <span><i data-lucide="user" style="width: 14px; height: 14px;"></i> {{ od.task.assignee.username if od.task.assignee else 'Unassigned' }}</span>
+                        <span style="color: #DC2626; font-weight: 600;">{{ od.days_overdue }} days overdue</span>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: #16A34A; text-align: center; margin-top: 1rem;"><i data-lucide="check"></i> No overdue tasks!</p>
+                {% endfor %}
+            </div>
+            
+            <!-- Right panel -->
+            <div class="attention-panel panel-risk">
+                <div class="panel-title"><i data-lucide="alert-triangle"></i> At Risk Tasks</div>
+                {% for ar in at_risk_tasks %}
+                <div class="task-card">
+                    <div class="task-card-title">{{ ar.task.title }}</div>
+                    <div class="task-card-meta">
+                        <span><i data-lucide="user" style="width: 14px; height: 14px;"></i> {{ ar.task.assignee.username if ar.task.assignee else 'Unassigned' }}</span>
+                        <span style="color: #D97706; font-weight: 600;">{{ ar.days_remaining }} days remaining</span>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: #16A34A; text-align: center; margin-top: 1rem;"><i data-lucide="check"></i> No at-risk tasks!</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 6 Activity Summary -->
+    <h3 class="section-title">Team Activity Summary</h3>
+    {% if activity_summary.most_active %}
+    <div style="display: flex; gap: 2rem; margin-bottom: 2rem;">
+        <div class="stat-card" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+            <div>
+                <div class="stat-label">Most Active Member</div>
+                <div class="stat-value" style="font-size: 1.8rem; margin: 0.5rem 0;">{{ activity_summary.most_active.user.username }}</div>
+                <div class="report-meta">{{ activity_summary.most_active.count }} actions</div>
+            </div>
+        </div>
+        <div class="stat-card" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+            <div>
+                <div class="stat-label">Peak Activity Day</div>
+                <div class="stat-value" style="font-size: 1.8rem; margin: 0.5rem 0;">{{ activity_summary.peak_day.date if activity_summary.peak_day else '—' }}</div>
+                <div class="report-meta">{{ activity_summary.peak_day.count if activity_summary.peak_day else '0' }} actions</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="css-chart">
+        {% set max_acts = activity_summary.actions_per_member[0].count if activity_summary.actions_per_member else 1 %}
+        {% for am in activity_summary.actions_per_member %}
+        {% set pct = (am.count / max_acts * 100) if max_acts > 0 else 0 %}
+        <div class="chart-row">
+            <div class="chart-label">{{ am.user.username }}</div>
+            <div class="chart-bar-wrap">
+                <div class="chart-bar" style="width: {{ pct }}%;">{{ am.count }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="text-align: center; color: var(--color-text-muted);">No activity recorded in the last 30 days.</p>
+    {% endif %}
+
+
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const filters = document.querySelectorAll('.filter-btn');
+        const rows = document.querySelectorAll('#timeline-table tbody tr');
+        
+        filters.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active state
+                filters.forEach(f => f.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const filterValue = btn.dataset.filter;
+                
+                rows.forEach(row => {
+                    if (filterValue === 'all') {
+                        row.style.display = '';
+                    } else {
+                        if (row.dataset.status === filterValue) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        });
+
+
+    });
+</script>
+{% endblock %}

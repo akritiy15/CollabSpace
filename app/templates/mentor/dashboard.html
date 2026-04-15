@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+{% block title %}Mentor Dashboard{% endblock %}
+{% block page_title %}Mentor Dashboard{% endblock %}
+
+{% block top_actions %}
+<button class="btn btn-primary" onclick="document.getElementById('create-group-modal').style.display='flex'">
+    <i data-lucide="plus"></i> Create Student Group
+</button>
+<a href="{{ url_for('mentor.setup') }}" class="btn btn-secondary">
+    <i data-lucide="settings"></i> Setup Profile
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% if overview.total_groups > 0 %}
+    {% if current_user.mentor_profile %}
+    <!-- MENTOR PROFILE CARD -->
+    <div class="mentor-profile-card">
+        <div class="mentor-avatar">
+            {{ current_user.username[:2]|upper }}
+        </div>
+        <div class="mentor-info">
+            <h3 class="mentor-name">{{ current_user.username }}</h3>
+            <p class="mentor-designation">{{ current_user.mentor_profile.designation or 'Mentor' }}</p>
+            <p class="mentor-department">{{ current_user.mentor_profile.department or 'Department not set' }}</p>
+        </div>
+        <div class="mentor-stats">
+            <div class="mentor-stat-item">
+                <div class="mentor-stat-value">{{ overview.total_students }}</div>
+                <div class="mentor-stat-label">Total Students</div>
+            </div>
+            <div class="mentor-stat-item">
+                <div class="mentor-stat-value">{{ overview.total_groups }}</div>
+                <div class="mentor-stat-label">Active Projects</div>
+            </div>
+            <div class="mentor-stat-item">
+                {% set avg_score = 0 %}
+                {% if overview.total_groups > 0 %}
+                    {% set avg_score = (overview.groups | map(attribute='health_score') | sum / overview.total_groups) | round | int %}
+                {% endif %}
+                <div class="mentor-stat-value" style="color: {% if avg_score>=80 %}#27AE60{% elif avg_score>=50 %}#F39C12{% else %}#E74C3C{% endif %}">
+                    {{ avg_score }}
+                </div>
+                <div class="mentor-stat-label">Avg Health</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SUMMARY ROW -->
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="stat-label">Total Projects</div>
+            <div class="stat-value">{{ overview.total_groups }}</div>
+        </div>
+        <div class="summary-card healthy">
+            <div class="stat-label">Healthy</div>
+            <div class="stat-value" style="color:#27AE60">{{ overview.healthy_count }}</div>
+        </div>
+        <div class="summary-card at-risk">
+            <div class="stat-label">At Risk</div>
+            <div class="stat-value" style="color:#F39C12">{{ overview.at_risk_count }}</div>
+        </div>
+        <div class="summary-card critical">
+            <div class="stat-label">Critical</div>
+            <div class="stat-value" style="color:#E74C3C">{{ overview.critical_count }}</div>
+        </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All Projects ({{ overview.total_groups }})</button>
+        <button class="filter-btn" data-filter="Healthy">Healthy ({{ overview.healthy_count }})</button>
+        <button class="filter-btn" data-filter="At Risk">At Risk ({{ overview.at_risk_count }})</button>
+        <button class="filter-btn" data-filter="Critical">Critical ({{ overview.critical_count }})</button>
+    </div>
+
+    <!-- STUDENT PROJECTS TABLE -->
+    <div class="projects-table-container">
+        <table class="projects-table">
+            <thead>
+                <tr>
+                    <th>Student / Project</th>
+                    <th>Progress</th>
+                    <th style="text-align:center">Health</th>
+                    <th>Tasks</th>
+                    <th>Last Active</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="projects-skeleton">
+                <tr>
+                    <td><div class="skeleton-loader" style="width: 140px;"></div></td>
+                    <td>
+                        <div style="display:flex; gap: -5px;">
+                            <div class="skeleton-loader" style="width:28px; height:28px; border-radius:50%;"></div>
+                        </div>
+                    </td>
+                    <td><div class="skeleton-loader" style="width: 60px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 90px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px;"></div></td>
+                </tr>
+                <tr>
+                    <td><div class="skeleton-loader" style="width: 120px;"></div></td>
+                    <td>
+                        <div style="display:flex; gap: -5px;">
+                            <div class="skeleton-loader" style="width:28px; height:28px; border-radius:50%;"></div>
+                        </div>
+                    </td>
+                    <td><div class="skeleton-loader" style="width: 70px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px;"></div></td>
+                </tr>
+            </tbody>
+            <tbody id="projects-data" style="display: none;">
+                {% for group in overview.groups %}
+                <tbody class="project-row-group">
+                    <tr class="project-row" data-target="preview-{{ group.id }}" data-health="{{ group.health_status }}" data-group-id="{{ group.id }}">
+                        <td class="student-col">
+                            <div class="project-name">{{ group.name }}</div>
+                            <div class="student-names">
+                                {% if group.student_members|length == 0 %}
+                                    No students
+                                {% elif group.student_members|length == 1 %}
+                                    {{ group.student_members[0].username }}
+                                {% elif group.student_members|length == 2 %}
+                                    {{ group.student_members[0].username }}, {{ group.student_members[1].username }}
+                                {% else %}
+                                    {{ group.student_members[0].username }} + {{ group.student_members|length - 1 }} others
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="progress-col">
+                            <div class="progress-bar-container">
+                                <div class="progress-track">
+                                    <div class="progress-fill {% if group.completion_rate>=80 %}green{% elif group.completion_rate>=50 %}amber{% else %}red{% endif %}" style="width: {{ group.completion_rate }}%"></div>
+                                </div>
+                                <div class="progress-label">{{ group.completion_rate }}%</div>
+                            </div>
+                        </td>
+                        <td class="health-col">
+                            <div class="health-score" style="color: {{ group.health_color }}">{{ group.health_score }}</div>
+                            <div class="health-status" style="color: {{ group.health_color }}">{{ group.health_status }}</div>
+                        </td>
+                        <td class="tasks-col">
+                            <span class="tasks-count">{{ group.completed_tasks }} / {{ group.total_tasks }}</span>
+                            {% if group.overdue_tasks > 0 %}
+                                <div class="tasks-overdue">{{ group.overdue_tasks }} overdue</div>
+                            {% else %}
+                                <div class="tasks-overdue" style="display:none;"></div>
+                            {% endif %}
+                        </td>
+                        <td class="last-active-col" style="font-size:12px; color:var(--color-gray-dark)">
+                            <span class="last-active">{{ group.last_activity_relative }}</span>
+                            <i data-lucide="chevron-down" class="expand-icon" style="float:right; width:16px; height:16px; color:#CBD5E1; transition:transform 0.2s"></i>
+                        </td>
+                        <td style="text-align:right">
+                            <a href="{{ url_for('mentor.group_detail', group_id=group.id) }}" class="btn btn-sm btn-secondary" style="padding:4px 8px; font-size:12px; margin-right:4px;">View</a>
+                            <a href="{{ url_for('mentor.group_report', group_id=group.id) }}" class="btn btn-sm btn-primary" style="padding:4px 8px; font-size:12px;">Report</a>
+                        </td>
+                    </tr>
+                    <tr id="preview-{{ group.id }}" class="expanded-preview">
+                        <td colspan="6" style="padding:0; border:none;">
+                            <div class="expanded-preview-inner">
+                                <div class="preview-col">
+                                    <h4>Recent Tasks</h4>
+                                    {% if group.recent_tasks %}
+                                        {% for t in group.recent_tasks %}
+                                        <div class="preview-task">
+                                            <i data-lucide="{{ 'check-circle' if t.status == 'done' else 'circle' }}" style="width:14px; height:14px; color:{{ '#27AE60' if t.status == 'done' else '#94A3B8' }}; margin-top:2px;"></i>
+                                            <div>
+                                                <div style="font-weight:500; color:var(--color-navy)">{{ t.title }}</div>
+                                                <div style="font-size:11px; color:var(--color-gray-dark)">{{ t.assigned_to_username }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                        {% if group.total_tasks > 3 %}
+                                        <a href="{{ url_for('mentor.group_detail', group_id=group.id) }}" style="font-size:12px; color:var(--color-primary); text-decoration:none; font-weight:500;">{{ group.total_tasks - 3 }} more tasks &rarr;</a>
+                                        {% endif %}
+                                    {% else %}
+                                        <div style="font-size:12px; color:var(--color-gray-dark)">No tasks found</div>
+                                    {% endif %}
+                                </div>
+                                <div class="preview-col">
+                                    <h4>Recent Activity</h4>
+                                    {% if group.recent_activity %}
+                                        {% for act in group.recent_activity %}
+                                        <div class="preview-activity">
+                                            <i data-lucide="radio" class="preview-activity-icon" style="width:14px; height:14px; margin-top:2px;"></i>
+                                            <div>
+                                                <div class="preview-activity-desc">{{ act.description }}</div>
+                                                <div class="preview-activity-time">{{ act.relative_time }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div style="font-size:12px; color:var(--color-gray-dark)">No recent activity</div>
+                                    {% endif %}
+                                </div>
+                                <div class="preview-col">
+                                    <h4>Quick Stats</h4>
+                                    <div class="preview-stat">
+                                        <span class="stat-lbl">Time logged</span>
+                                        <span class="stat-val">{{ (group.time_logged_minutes / 60)|int }}h {{ group.time_logged_minutes % 60 }}m</span>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="stat-lbl">Meeting notes</span>
+                                        <span class="stat-val">{{ group.meeting_notes_count }} meetings</span>
+                                    </div>
+                                    <div class="preview-stat">
+                                        <span class="stat-lbl">Members</span>
+                                        <span class="stat-val">{{ group.student_members|length }} students</span>
+                                    </div>
+                                    <div style="margin-top: 16px; text-align:right;">
+                                        <a href="{{ url_for('mentor.group_detail', group_id=group.id) }}" class="btn btn-secondary" style="width:100%; justify-content:center;">Open Full Project</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TASKS OVERVIEW SECTION -->
+    <h3 id="tasks-overview" style="margin-top: 48px; border-bottom: 2px solid var(--color-border); padding-bottom: 8px; font-weight: 600;">Tasks Overview</h3>
+    <div class="projects-table-container" style="margin-top: 16px; margin-bottom: 48px;">
+        <table class="projects-table">
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>Task</th>
+                    <th>Assignee</th>
+                    <th>Status & Deadline</th>
+                    <th>Approval Status</th>
+                    <th>Hours (Logged / Est.)</th>
+                    <th>Time Variance</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-skeleton">
+                <tr>
+                    <td><div class="skeleton-loader" style="width: 80px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 150px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 100px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 90px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 70px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 60px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px;"></div></td>
+                </tr>
+                <tr>
+                    <td><div class="skeleton-loader" style="width: 90px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 120px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 90px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 80px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 70px; border-radius: 999px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 65px;"></div></td>
+                    <td><div class="skeleton-loader" style="width: 70px;"></div></td>
+                </tr>
+            </tbody>
+            <tbody id="tasks-data" style="display: none;">
+                {% for item in overview.all_tasks %}
+                <tr class="project-row" id="mentor-task-row-{{ item.task.id }}" style="cursor: default;">
+                    <td style="font-weight: 500;">
+                        <a href="{{ url_for('mentor.group_detail', group_id=item.group_id) }}" style="text-decoration:none; color:var(--color-primary);">{{ item.group_name }}</a>
+                    </td>
+                    <td style="font-weight: 500;">{{ item.task.title }}</td>
+                    <td>
+                        {% if item.task.assignee %}
+                            {{ item.task.assignee.username }}
+                        {% else %}
+                            <span style="color:var(--color-gray-dark);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ item.task.status }}" style="margin-right: 4px;">{{ item.task.status.replace('_', ' ').title() }}</span>
+                        {% if item.task.deadline %}
+                            <span style="font-size:11px; padding:2px 6px; border-radius:4px; font-weight:600;
+                                {% if item.task.deadline_status == 'overdue' %}background:#FEE2E2; color:#B91C1C;
+                                {% elif item.task.deadline_status == 'critical' %}background:#FEF08A; color:#A16207;
+                                {% elif item.task.deadline_status == 'warning' %}background:#FEF9C3; color:#CA8A04;
+                                {% else %}background:#F8FAFC; color:#64748B;
+                                {% endif %}">{{ item.task.deadline.strftime('%d %b') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set pstat = item.task.approval_status or '' %}
+                        {% if pstat == 'approved' %}
+                            <span class="badge" style="background:#DCFCE7; color:#15803D;">Approved</span>
+                        {% elif pstat == 'changes_requested' %}
+                            <span class="badge" style="background:#FEF08A; color:#A16207;">Changes Requested</span>
+                        {% else %}
+                            <span class="badge" style="background:#F1F5F9; color:#475569;">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.time_stats %}
+                            {{ item.time_stats.formatted }} / {{ item.time_stats.estimated_formatted }}
+                        {% else %}
+                            0m / 0m
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.time_stats %}
+                            {% if item.time_stats.variance_status == 'over' %}
+                                {% if item.time_stats.variance_minutes > 60 %}
+                                    <span style="color: #DC2626; font-weight: bold;">At Risk 🔴</span>
+                                {% else %}
+                                    <span style="color: #D97706; font-weight: bold;">Over Budget 🟡</span>
+                                {% endif %}
+                            {% else %}
+                                <span style="color: #059669; font-weight: bold;">On Track 🟢</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: #059669; font-weight: bold;">On Track 🟢</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align:center; padding: 24px; color: var(--color-gray-dark);">No tasks found across your groups.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% else %}
+    <!-- EMPTY STATE -->
+    <div style="text-align:center; padding: 60px 20px; background:white; border-radius:16px; border:1px dashed #CBD5E1;">
+        <div style="width:80px; height:80px; background:#F0F9FF; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+            <i data-lucide="users" style="width:40px; height:40px; color:var(--color-primary);"></i>
+        </div>
+        <h2 style="margin-top:0; color:var(--color-navy); font-size:24px;">You have no student projects yet</h2>
+        <p style="color:var(--color-gray-dark); margin-bottom:24px; font-size:15px;">Create your first student group to get started tracking their progress.</p>
+        <button class="btn btn-primary" onclick="document.getElementById('create-group-modal').style.display='flex'">
+            <i data-lucide="plus"></i> Create Student Group
+        </button>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="how-it-works">
+        <div class="step-box">
+            <div class="step-number">1</div>
+            <h4>Create a group</h4>
+            <p>Make a separate project group for each student or team.</p>
+        </div>
+        <div class="step-box">
+            <div class="step-number">2</div>
+            <h4>Invite students</h4>
+            <p>Add them via email or share the group invite code.</p>
+        </div>
+        <div class="step-box">
+            <div class="step-number">3</div>
+            <h4>Track progress</h4>
+            <p>Monitor tasks, activity, and health scores all in one place.</p>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Create Student Group Modal -->
+<div class="modal-overlay" id="create-group-modal" style="display: none; align-items:center; justify-content:center;">
+    <div class="modal-content" style="max-width:500px; width:100%;">
+        <div class="modal-header">
+            <h3 class="modal-title">Create Student Group</h3>
+            <button class="modal-close" onclick="document.getElementById('create-group-modal').style.display='none'">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="create-group-result" style="display:none; margin-bottom:16px;"></div>
+            
+            <div class="form-group">
+                <label class="form-label">Project Name <span style="color:#E74C3C">*</span></label>
+                <input type="text" id="sg-name" class="form-control" placeholder="Minor Project \u2014 Rahul Sharma" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Project Description</label>
+                <textarea id="sg-desc" class="form-control" rows="2" placeholder="Brief description of the project..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Student Emails</label>
+                <textarea id="sg-emails" class="form-control" rows="4" placeholder="rahul@college.edu&#10;priya@college.edu"></textarea>
+                <p style="font-size:12px; color:var(--color-gray-dark); margin-top:6px;">
+                    Students must already have a CollabSpace account. They will be added as Editors.<br>
+                    Enter one email per line.
+                </p>
+            </div>
+            
+            <div class="modal-actions" style="margin-top:24px;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-group-modal').style.display='none'">Cancel</button>
+                <button type="button" class="btn btn-primary" id="create-student-group-submit">Create Group</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(() => {
+        const ts = document.getElementById('tasks-skeleton');
+        const td = document.getElementById('tasks-data');
+        if (ts) ts.style.display = 'none';
+        if (td) td.style.display = '';
+        
+        const ps = document.getElementById('projects-skeleton');
+        const pd = document.getElementById('projects-data');
+        if (ps) ps.style.display = 'none';
+        if (pd) pd.style.display = '';
+    }, 400); // Shimmer for 400ms to allow smooth perceived loading
+    
+    if (typeof io !== 'undefined') {
+        const socket = io();
+        socket.on('connect', () => {
+            socket.emit('join_mentor_rooms');
+        });
+
+        socket.on('time_update', (data) => {
+            console.log('Live Time Update Received:', data);
+            const row = document.getElementById('mentor-task-row-' + data.task_id);
+            if (row) {
+                // To keep it simple, we flash the row to show it was updated
+                row.style.transition = 'background-color 0.5s ease';
+                row.style.backgroundColor = '#FEF9C3';
+                setTimeout(() => row.style.backgroundColor = 'transparent', 2000);
+                
+                // Let's reload the page to ensure all variance calculations are mathematically perfect
+                // as re-calculating them purely in vanilla JS would duplicate the Flask backend logic.
+                setTimeout(() => window.location.reload(), 1500);
+            }
+        });
+        
+        socket.on('task_update', (data) => {
+            const taskId = data.task?.id || data.task_id;
+            const row = document.getElementById('mentor-task-row-' + taskId);
+            if (row) {
+                row.style.transition = 'background-color 0.5s ease';
+                row.style.backgroundColor = '#DCFCE7';
+                setTimeout(() => window.location.reload(), 1500);
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

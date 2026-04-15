@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - CollabSpace{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: Avatar & Stats -->
+    <div class="card" style="text-align: center; padding-top: 32px;">
+        <div style="position: relative; width: 120px; height: 120px; margin: 0 auto 16px;">
+            <img src="{{ user.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                 id="avatar-preview"
+                 style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid var(--color-surface);">
+            
+            <label for="avatar-upload" style="position: absolute; bottom: 0; right: 0; background: var(--color-primary); color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid white; box-shadow: var(--shadow-sm);">
+                <i data-lucide="camera" style="width: 16px;"></i>
+            </label>
+            <input type="file" id="avatar-upload" accept="image/png, image/jpeg, image/gif" style="display: none;">
+        </div>
+        
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 4px;">{{ user.username }}</h2>
+        <p style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 16px;">{{ user.email }}</p>
+        
+        <p style="font-size: 0.9rem; color: var(--color-text-primary); padding: 0 24px; margin-bottom: 24px;">
+            {{ user.bio or 'No bio provided yet.' }}
+        </p>
+        
+        <div style="display: flex; border-top: 1px solid var(--color-border); margin-top: auto;">
+            <div style="flex: 1; padding: 16px 0; border-right: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 1.1rem;">{{ friends|length }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Connections</div>
+            </div>
+            <div style="flex: 1; padding: 16px 0;">
+                <div style="font-weight: 700; font-size: 1.1rem;">{{ group_count }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Groups</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Tabbed Interface -->
+    <div>
+        <div class="tabs" style="display: flex; gap: 16px; border-bottom: 1px solid var(--color-border); margin-bottom: 24px;">
+            <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+            {% if current_user.account_type == 'student' %}
+            <button class="tab-btn" onclick="switchTab('academic')">Academic Details</button>
+            <button class="tab-btn" onclick="switchTab('tasks')">Tasks</button>
+            <button class="tab-btn" onclick="switchTab('time')">Time Logs</button>
+            <button class="tab-btn" onclick="switchTab('scores')">Scores</button>
+            {% endif %}
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-content" style="display: block;">
+            <div class="card mb-4">
+                <div class="card-header">Edit Profile</div>
+                <div class="card-body">
+                    <form action="{{ url_for('profile.edit') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="form-group">
+                            <label class="form-label" for="username">Username</label>
+                            <input type="text" id="username" name="username" class="form-control" value="{{ user.username }}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="email">Email Address <span style="color: var(--color-text-muted); font-weight: 400;">(Non-editable)</span></label>
+                            <input type="email" id="email" class="form-control" value="{{ user.email }}" disabled style="background-color: var(--color-surface);">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="bio">Bio</label>
+                            <textarea id="bio" name="bio" class="form-control" rows="4" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header">Account Preferences</div>
+                <div class="card-body">
+                    <a href="{{ url_for('profile.notifications') }}" class="btn btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i data-lucide="bell"></i>
+                        Manage Notification Preferences
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.account_type == 'student' %}
+        <!-- Academic Profile Tab -->
+        <div id="tab-academic" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">Academic & Professional Details</div>
+                <div class="card-body">
+                    <form action="/api/profile/academic" method="POST" id="academic-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Institution</label>
+                                <input type="text" name="institution" class="form-control" value="{{ academic_profile.institution if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Branch/Course</label>
+                                <input type="text" name="branch" class="form-control" value="{{ academic_profile.branch if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Semester</label>
+                                <input type="number" name="semester" class="form-control" min="1" max="12" value="{{ academic_profile.semester if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Admission Year</label>
+                                <input type="number" name="admission_year" class="form-control" min="2000" max="2100" value="{{ academic_profile.admission_year if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Enrollment Number</label>
+                                <input type="text" name="enrollment_number" class="form-control" value="{{ academic_profile.enrollment_number if academic_profile else '' }}">
+                            </div>
+                        </div>
+                        <h4 style="margin-top:24px; margin-bottom:12px; font-size:14px; color:var(--color-navy);">Links & Availability</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">LinkedIn URL</label>
+                                <input type="url" name="linkedin_url" class="form-control" value="{{ academic_profile.linkedin_url if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">GitHub URL</label>
+                                <input type="url" name="github_url" class="form-control" value="{{ academic_profile.github_url if academic_profile else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hours Available / Week</label>
+                                <input type="number" name="availability_hours_per_week" class="form-control" min="0" max="100" value="{{ academic_profile.availability_hours_per_week if academic_profile else '' }}">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveAcademicProfile()">Save Academic Details</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="tab-tasks" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">My Assigned Tasks</div>
+                <div class="card-body" style="padding: 0;">
+                    {% if user_tasks %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for t in user_tasks %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 500; font-size: 1rem;"><a href="/groups/{{ t.group_id }}" style="color: inherit; text-decoration: none;">{{ t.title }}</a></div>
+                                    <div style="font-size: 0.8rem; color: var(--color-text-secondary);">in {{ t.group.name if t.group else 'Unknown' }}</div>
+                                </div>
+                                <div>
+                                    {% if t.is_completed %}
+                                        <span class="badge" style="background:#E8F5E9; color:#2E7D32;">Completed</span>
+                                    {% else %}
+                                        <span class="badge" style="background:#F3E5F5; color:#7B1FA2;">{{ t.status|title }}</span>
+                                    {% endif %}
+                                    {% if t.deadline %}
+                                        <span class="badge" style="
+                                            {% if t.deadline_status == 'overdue' %}background:#FEE2E2; color:#B91C1C;
+                                            {% elif t.deadline_status == 'critical' %}background:#FEF08A; color:#A16207;
+                                            {% elif t.deadline_status == 'warning' %}background:#FEF9C3; color:#CA8A04;
+                                            {% else %}background:#F8FAFC; color:#64748B;
+                                            {% endif %}">Due {{ t.deadline.strftime('%d %b') }}</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No tasks assigned currently.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Logs Tab -->
+        <div id="tab-time" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">My Time Log (By Project)</div>
+                <div class="card-body" style="padding: 0;">
+                    {% if project_times %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for pt in project_times %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 500; font-size: 1rem;"><a href="/groups/{{ pt.group_id }}" style="color: inherit; text-decoration: none;">{{ pt.group_name }}</a></div>
+                                </div>
+                                <div style="font-weight: 600; color: var(--color-text-primary);">{{ pt.formatted }}</div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">
+                            No time logged yet.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Scores Tab -->
+        <div id="tab-scores" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">Performance Scores
+                    <span style="float: right; font-size: 12px; font-weight: normal; color: var(--color-text-muted);">Only visible to you and mentors</span>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    {% if user_scores %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for score in user_scores %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 500; font-size: 1rem;">{{ score.group.name if score.group else 'Unknown' }} - {{ score.sprint_label or 'Overall' }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Calculated: {{ score.calculated_at.strftime('%d %b %Y') if score.calculated_at else 'Unknown' }}</div>
+                                    <div style="font-size: 0.85rem; color: var(--color-text-muted); margin-top:4px;">
+                                        Tasks: {{ score.tasks_score|round(1) }}% | Hours: {{ score.hours_score|round(1) }}% | Peer: {{ score.peer_score|round(1) }}%
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 18px; font-weight: 700; color: var(--color-primary);">{{ score.final_score|round(1) }}%</div>
+                                    <div style="font-size: 10px; color: var(--color-text-muted);">Final Score</div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No performance scores available yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<style>
+.tab-btn {
+    background: none; border: none; padding: 8px 16px; font-size: 1rem; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500;
+}
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+    
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-' + tabId).style.display = 'block';
+}
+
+function saveAcademicProfile() {
+    const form = document.getElementById('academic-form');
+    const formData = new FormData(form);
+    
+    fetch('/api/profile/academic', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Academic Profile saved successfully!", "success");
+        } else {
+            window.showToast(data.message || "Failed to save profile", "error");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        window.showToast("An error occurred", "error");
+    });
+}
+
+document.getElementById('avatar-upload').addEventListener('change', function(e) {
+    if(!this.files || !this.files[0]) return;
+    
+    const file = this.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('avatar-preview').src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+    
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    fetch('{{ url_for("profile.avatar") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Avatar updated successfully!", "success");
+        } else {
+            window.showToast(data.message || "Upload failed", "error");
+        }
+    })
+    .catch(err => {
+        window.showToast("An error occurred during upload", "error");
+    });
+});
+</script>
+{% endblock %}

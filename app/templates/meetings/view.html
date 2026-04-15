@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meeting.title }} — {{ group.name }}{% endblock %}
+{% block page_title %}Meeting Notes{% endblock %}
+
+{% block top_actions %}
+<a href="{{ url_for('meetings.index', group_id=group.id) }}" class="btn btn-secondary">
+    <i data-lucide="arrow-left"></i> Back to Meetings
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 24px; margin-bottom: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px;">
+        <div>
+            <h2 style="font-size: 20px; font-weight: 600; color: var(--color-navy); margin-bottom: 8px;">{{ meeting.title }}</h2>
+            <div style="font-size: 13px; color: var(--color-text-secondary); display:flex; align-items:center; gap:8px;">
+                <i data-lucide="calendar" style="width:14px; height:14px;"></i> {{ meeting.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                &middot;
+                <i data-lucide="user" style="width:14px; height:14px;"></i> {{ meeting.creator.username }}
+            </div>
+        </div>
+        <div class="badge" style="background:#E0F2FE; color:#0284C7; padding: 6px 10px; font-size: 13px;">
+            <i data-lucide="check-circle-2" style="width:14px; height:14px; margin-right:4px;"></i> {{ meeting.tasks_extracted }} Tasks Extracted
+        </div>
+    </div>
+
+    {% if meeting.summary %}
+    <div style="margin-top: 24px;">
+        <h3 style="font-size: 15px; font-weight: 600; color: var(--color-navy); margin-bottom: 12px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="file-text" style="width:16px; height:16px; color:var(--color-primary);"></i> Summary
+        </h3>
+        <div style="background:var(--color-bg-subtle); padding:16px; border-radius:8px; border:1px solid var(--color-border); font-size:14px; color:var(--color-text-primary); line-height:1.5;">
+            {{ meeting.summary }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% set decisions = meeting.to_dict().get('key_decisions_list', []) %}
+    {% if decisions %}
+    <div style="margin-top: 24px;">
+        <h3 style="font-size: 15px; font-weight: 600; color: var(--color-navy); margin-bottom: 12px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="lightbulb" style="width:16px; height:16px; color:#F59E0B;"></i> Key Decisions
+        </h3>
+        <ul style="margin: 0; padding-left: 20px; color: var(--color-text-primary); font-size:14px; line-height:1.5;">
+            {% for decision in decisions %}
+                <li style="margin-bottom: 6px;">{{ decision }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 24px;">
+        <h3 style="font-size: 15px; font-weight: 600; color: var(--color-navy); margin-bottom: 12px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="align-left" style="width:16px; height:16px; color:var(--color-text-muted);"></i> Raw Notes
+        </h3>
+        <div style="white-space: pre-wrap; background: white; padding: 16px; border-radius: 8px; border: 1px solid var(--color-border); font-size: 14px; color: var(--color-text-primary); line-height: 1.6; max-height: 500px; overflow-y: auto;">{{ meeting.raw_notes }}</div>
+    </div>
+</div>
+{% endblock %}

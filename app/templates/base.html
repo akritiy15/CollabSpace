@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+    <title>{% block title %}CollabSpace{% endblock %}</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="app-logo">
+                <i data-lucide="layers" class="logo-icon"></i>
+                <span class="app-name">CollabSpace</span>
+            </a>
+            <button class="mobile-close-btn" id="sidebar-close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            {% if group %}
+                {% if not current_user.mentor_profile and current_group_role != 'admin' %}
+                    <a href="{{ url_for('tasks.index', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="layout-grid"></i>
+                        <span>Kanban Board</span>
+                    </a>
+                    <a href="{{ url_for('tasks.index', group_id=group.id, assigned='me') }}" class="nav-link">
+                        <i data-lucide="check-square"></i>
+                        <span>My Tasks</span>
+                    </a>
+                    <a href="{{ url_for('time_tracking.my_time', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="clock"></i>
+                        <span>Log Time</span>
+                    </a>
+                    <a href="{{ url_for('meetings.index', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="video"></i>
+                        <span>Meetings</span>
+                    </a>
+                    <a href="/profile" class="nav-link">
+                        <i data-lucide="user"></i>
+                        <span>My Profile</span>
+                    </a>
+                    <a href="{{ url_for('dashboard.index') }}" class="nav-link">
+                        <i data-lucide="bar-chart"></i>
+                        <span>Progress Report</span>
+                    </a>
+                {% elif current_group_role == 'admin' %}
+                    <a href="{{ url_for('tasks.team_leader_dashboard', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="list"></i>
+                        <span>Task Management Panel</span>
+                    </a>
+                    <a href="{{ url_for('tasks.index', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="layout-grid"></i>
+                        <span>Task Progress Overview</span>
+                    </a>
+                    <a href="{{ url_for('time_tracking.overview', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="clock"></i>
+                        <span>Time Tracking Overview</span>
+                    </a>
+                    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="users"></i>
+                        <span>Manage Members</span>
+                    </a>
+                    <a href="{{ url_for('meetings.index', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="video"></i>
+                        <span>Meetings</span>
+                    </a>
+                    <a href="{{ url_for('reports.preview', group_id=group.id) }}" class="nav-link">
+                        <i data-lucide="file-text"></i>
+                        <span>Group Report</span>
+                    </a>
+                {% else %}
+                    <a href="/dashboard" class="nav-link active">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="/groups" class="nav-link">
+                        <i data-lucide="users"></i>
+                        <span>My Groups</span>
+                    </a>
+                {% endif %}
+            {% elif current_user.is_authenticated and current_user.mentor_profile %}
+                <a href="/mentor/dashboard" class="nav-link">
+                    <i data-lucide="graduation-cap"></i>
+                    <span>Mentor Dashboard</span>
+                </a>
+                <a href="/mentor/dashboard#tasks-overview" class="nav-link">
+                    <i data-lucide="list"></i>
+                    <span>Tasks Overview (read-only)</span>
+                </a>
+                <a href="/mentor/dashboard#time-overview" class="nav-link">
+                    <i data-lucide="clock"></i>
+                    <span>Time Tracking Overview (read-only)</span>
+                </a>
+                <a href="/mentor/dashboard#student-scores" class="nav-link">
+                    <i data-lucide="bar-chart"></i>
+                    <span>Student Scores</span>
+                </a>
+                <a href="/mentor/dashboard" class="nav-link">
+                    <i data-lucide="users"></i>
+                    <span>All Groups Overview</span>
+                </a>
+            {% else %}
+                <a href="/dashboard" class="nav-link active">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/groups" class="nav-link">
+                    <i data-lucide="users"></i>
+                    <span>My Groups</span>
+                </a>
+                <a href="/members" class="nav-link">
+                    <i data-lucide="user-plus"></i>
+                    <span>Members</span>
+                </a>
+                <a href="/profile" class="nav-link">
+                    <i data-lucide="user"></i>
+                    <span>Profile</span>
+                </a>
+            {% endif %}
+        </nav>
+        
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <div class="user-profile-link" style="display: flex; align-items: center; text-decoration: none; color: inherit; width: 100%;">
+                <a href="/profile" style="display: flex; align-items: center; text-decoration: none; color: inherit; flex: 1; border-radius: 8px;">
+                    <div class="avatar avatar-sm">
+                        {% if current_user.profile_picture %}
+                        <img src="{{ current_user.profile_picture }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                        {% else %}
+                        <span class="avatar-fallback">{{ current_user.username[:2]|upper }}</span>
+                        {% endif %}
+                        <span class="presence-dot"></span>
+                    </div>
+                    <span class="username">{{ current_user.username }}</span>
+                </a>
+                <a href="{{ url_for('auth.logout') }}" style="margin-left: auto; text-decoration: none; color: inherit; display: flex; align-items: center; padding: 4px; border-radius: 4px;" title="Logout">
+                   <i data-lucide="log-out" class="logout-icon"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <button class="mobile-menu-btn" id="mobile-menu-toggle">
+                    <i data-lucide="menu"></i>
+                </button>
+                <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+            <div class="top-bar-right">
+                <!-- Global Search Trigger -->
+                <button class="btn btn-secondary btn-sm" onclick="openSearchModal()" style="color: var(--color-text-secondary); background: var(--color-surface); border: none; padding: 6px 12px; margin-right: 8px;">
+                    <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+                    <span style="font-size: 0.8rem; margin-left: 4px;">Cmd+K</span>
+                </button>
+
+                <div class="top-actions">
+                    {% block top_actions %}{% endblock %}
+                    
+                    <!-- Global Create Dropdown -->
+                    <div class="dropdown-container">
+                        <button class="btn btn-primary btn-sm" onclick="toggleDropdown('createDropdown')" style="padding: 6px 10px;">
+                            <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+                        </button>
+                        <div class="dropdown-menu" id="createDropdown" style="right: 0;">
+                            <div class="dropdown-header">Create New</div>
+                            <a href="#" onclick="event.preventDefault(); openCreateGroupSlideOver(); toggleDropdown('createDropdown');" class="dropdown-item"><i data-lucide="users"></i> Group</a>
+                            <a href="/groups" class="dropdown-item"><i data-lucide="check-square"></i> Task</a>
+                            <a href="/members" class="dropdown-item"><i data-lucide="user-plus"></i> Member</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notification Dropdown -->
+                <div class="dropdown-container" style="margin-left: 8px;">
+                    <button class="notification-btn" onclick="toggleDropdown('notifDropdown')">
+                        <i data-lucide="bell"></i>
+                        <span class="notification-badge" id="notif-badge"></span>
+                    </button>
+                    <div class="dropdown-menu" id="notifDropdown" style="right: 0; min-width: 250px;">
+                        <div class="dropdown-header">Notifications</div>
+                        <div id="global-notifications">
+                            <div class="dropdown-item" style="color: var(--color-text-secondary); font-size: 0.8rem; justify-content: center;">
+                                No new notifications
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="content-container">
+            <!-- Flash Messages container for JS -->
+            <div id="toast-container">
+                <!-- Server-side flashes injected dynamically -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="toast toast-{{ category }}">
+                        <div class="toast-content">{{ message }}</div>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+            </div>
+            
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (Visible only on mobile) -->
+    <nav class="bottom-nav">
+        <a href="/dashboard" class="bottom-nav-link active">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Home</span>
+        </a>
+        <a href="/groups" class="bottom-nav-link">
+            <i data-lucide="users"></i>
+            <span>Groups</span>
+        </a>
+        {% if current_user.is_authenticated and current_user.mentor_profile %}
+        <a href="/mentor/dashboard" class="bottom-nav-link">
+            <i data-lucide="graduation-cap"></i>
+            <span>Mentor</span>
+        </a>
+        {% endif %}
+        <a href="/members" class="bottom-nav-link">
+            <i data-lucide="user-plus"></i>
+            <span>Members</span>
+        </a>
+        <a href="/profile" class="bottom-nav-link">
+            <i data-lucide="user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <!-- CDNs -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Global Search Modal -->
+    <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this) closeSearchModal()">
+        <div class="search-modal">
+            <div class="search-input-wrapper">
+                <i data-lucide="search"></i>
+                <input type="text" id="globalSearchInput" placeholder="Search tasks, groups..." autocomplete="off">
+                <button class="btn btn-sm" onclick="closeSearchModal()" style="background: none; border: none; padding: 4px;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <div class="search-results" id="globalSearchResults"></div>
+        </div>
+    </div>
+
+    <script>
+        // Dropdown toggle logic
+        function toggleDropdown(id) {
+            const el = document.getElementById(id);
+            const wasActive = el.classList.contains('active');
+            document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('active'));
+            if (!wasActive) el.classList.add('active');
+        }
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown-container')) {
+                document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('active'));
+            }
+        });
+
+        // Search Modal logic
+        function openSearchModal() {
+            document.getElementById('searchOverlay').classList.add('active');
+            document.getElementById('globalSearchInput').focus();
+        }
+        function closeSearchModal() {
+            document.getElementById('searchOverlay').classList.remove('active');
+            document.getElementById('globalSearchInput').value = '';
+            document.getElementById('globalSearchResults').innerHTML = '';
+        }
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openSearchModal();
+            }
+            if (e.key === 'Escape') closeSearchModal();
+        });
+
+        // Search fetching
+        document.getElementById('globalSearchInput')?.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query.length < 2) {
+                document.getElementById('globalSearchResults').innerHTML = '';
+                return;
+            }
+            fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const results = document.getElementById('globalSearchResults');
+                    if (data.results && data.results.length > 0) {
+                        results.innerHTML = data.results.map(r => `
+                            <a href="${r.url}" class="search-result-item" style="text-decoration: none;">
+                                <div class="search-result-icon">
+                                    <i data-lucide="${r.type === 'group' ? 'users' : 'check-square'}"></i>
+                                </div>
+                                <div class="search-result-text">
+                                    <div class="search-result-title">${r.title}</div>
+                                    <div class="search-result-subtitle">${r.subtitle}</div>
+                                </div>
+                            </a>
+                        `).join('');
+                        lucide.createIcons();
+                    } else {
+                        results.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--color-text-secondary); font-size: 0.9rem;">No results found.</div>`;
+                    }
+                }).catch(console.error);
+        });
+
+        // Global Slide-Over logic for Create Group
+        function openCreateGroupSlideOver() {
+            document.getElementById('global-group-slide-over').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('global-group-slide-panel').classList.add('open');
+                document.getElementById('global-group-name').focus();
+            }, 10);
+        }
+
+        function closeCreateGroupSlideOver() {
+            document.getElementById('global-group-slide-panel').classList.remove('open');
+            setTimeout(() => {
+                document.getElementById('global-group-slide-over').style.display = 'none';
+            }, 300);
+        }
+    </script>
+    
+    <!-- Global Create Group Slide-Over -->
+    <div id="global-group-slide-over" class="slide-over-overlay" style="display: none;" onclick="if(event.target === this) closeCreateGroupSlideOver()">
+        <div class="slide-over-panel" id="global-group-slide-panel">
+            <div class="slide-over-header">
+                <span style="font-weight: 600; font-size: 1.1rem;"><i data-lucide="users" style="width: 18px; display: inline-block; vertical-align: -3px; margin-right: 6px;"></i>Create Workspace</span>
+                <button onclick="closeCreateGroupSlideOver()" style="background: none; border: none; cursor: pointer; color: var(--color-text-muted);"><i data-lucide="x"></i></button>
+            </div>
+            <div class="slide-over-body">
+                <form action="/groups/create" method="POST">
+                    <!-- If you have CSRF globally, make sure to attach it if Flask-WTF is not auto-injecting -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                    
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label class="form-label" for="global-group-name">Workspace Name *</label>
+                        <input type="text" id="global-group-name" name="name" class="form-control" placeholder="E.g. Engineering Team" required>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 32px;">
+                        <label class="form-label" for="global-group-desc">Description</label>
+                        <textarea id="global-group-desc" name="description" class="form-control" rows="4" placeholder="What is this workspace for?"></textarea>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateGroupSlideOver()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Workspace</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+
+    {% if current_user.is_authenticated %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof io !== 'undefined') {
+            const globalSocket = io();
+            globalSocket.on('connect', () => {
+                globalSocket.emit('join_user_room');
+            });
+            globalSocket.on('new_notification', (data) => {
+                fetchNotifications();
+                window.showToast(data.notification.message, "info");
+            });
+        }
+        
+        function fetchNotifications() {
+            fetch('/api/notifications')
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('notif-badge');
+                if (data.unread_count > 0) {
+                    badge.textContent = data.unread_count;
+                    badge.style.display = 'inline-flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+                
+                const container = document.getElementById('global-notifications');
+                if (data.notifications && data.notifications.length > 0) {
+                    container.innerHTML = data.notifications.map(n => `
+                        <div class="dropdown-item" style="display:flex; flex-direction:column; align-items:start; cursor:pointer; ${!n.is_read ? 'background:#F0F9FF;' : ''}" onclick="markAsRead(${n.id}, '${n.link || ''}')">
+                            <div style="font-size:0.85rem; color:var(--color-navy); margin-bottom:4px;">${n.message}</div>
+                            <div style="font-size:0.7rem; color:var(--color-text-muted);">${new Date(n.created_at).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="dropdown-item" style="color: var(--color-text-secondary); font-size: 0.8rem; justify-content: center;">No new notifications</div>';
+                }
+            }).catch(e => console.error(e));
+        }
+        
+        window.markAsRead = function(id, link) {
+            fetch(`/api/notifications/${id}/read`, { 
+                method: 'POST', 
+                headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')} 
+            })
+            .then(r => r.json())
+            .then(() => {
+                if (link && link !== 'null' && link !== '') {
+                    window.location.href = link;
+                } else {
+                    fetchNotifications(); // just refresh the view
+                }
+            });
+        };
+        
+        fetchNotifications();
+    });
+    </script>
+    {% endif %}
+</body>
+</html>

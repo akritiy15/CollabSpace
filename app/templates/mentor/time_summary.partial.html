@@ -1,0 +1,62 @@
+<div class="gd-card time-summary-card">
+    <div class="gd-card-header">
+        <h3 class="gd-card-title">Time Tracking Summary</h3>
+    </div>
+    <div class="gd-card-body">
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+            <div style="flex: 1; text-align: center; background: #F8FAFC; padding: 16px; border-radius: 8px;">
+                <div style="font-size: 24px; font-weight: 700; color: #3B82F6;">{{ time_stats.total_formatted|default('0h 0m') }}</div>
+                <div style="font-size: 12px; color: #64748B; text-transform: uppercase;">Total Active Hours</div>
+            </div>
+            <div style="flex: 1; text-align: center; background: #F8FAFC; padding: 16px; border-radius: 8px;">
+                <div style="font-size: 24px; font-weight: 700; color: {% if (time_stats.tasks_over_estimate|default(0)) > 0 %}#EF4444{% else %}#10B981{% endif %};">{{ time_stats.tasks_over_estimate|default(0) }}</div>
+                <div style="font-size: 12px; color: #64748B; text-transform: uppercase;">Tasks Over Budget</div>
+            </div>
+        </div>
+
+        <h4 style="font-size: 14px; margin-bottom: 12px; color: #1E293B;">Per-Task Variance</h4>
+        <div style="max-height: 300px; overflow-y: auto;">
+            <table class="table" style="width: 100%; font-size: 13px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #E2E8F0; text-align: left; color: #64748B;">
+                        <th style="padding-bottom: 8px;">Task Title</th>
+                        <th style="padding-bottom: 8px; text-align: right;">Estimated</th>
+                        <th style="padding-bottom: 8px; text-align: right;">Logged</th>
+                        <th style="padding-bottom: 8px; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tk in time_stats.by_task %}
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 0; font-weight: 500;">
+                            <div style="color: #1E293B">{{ tk.task_title }}</div>
+                            <div style="font-size: 11px; color: #94A3B8; font-weight: 400;">
+                                {% if tk.assignee %}{{ tk.assignee }}{% else %}Unassigned{% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 10px 0; text-align: right; color: #64748B;">
+                            {{ tk.estimated_formatted if tk.estimated_minutes else 'None' }}
+                        </td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: 600; color: #1E293B;">
+                            {{ tk.logged_formatted }}
+                        </td>
+                        <td style="padding: 10px 0; text-align: center;">
+                            {% if tk.variance_status == 'over' %}
+                                <span class="badge" style="background: #FEF2F2; color: #DC2626; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 11px;">Over Budget</span>
+                            {% elif tk.variance_status == 'under' %}
+                                <span class="badge" style="background: #F0FDF4; color: #16A34A; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 11px;">On Track</span>
+                            {% else %}
+                                <span class="badge" style="background: #F8FAFC; color: #64748B; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 11px;">No Est.</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="padding: 16px 0; text-align: center; color: #94A3B8;">No task time tracking data available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

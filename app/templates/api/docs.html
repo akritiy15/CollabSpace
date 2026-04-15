@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - CollabSpace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --color-primary: #2D6A7F;
+            --color-primary-dark: #1E4D5E;
+            --color-bg: #F4F7F6;
+            --color-surface: #FFFFFF;
+            --color-text-primary: #1F2937;
+            --color-text-secondary: #4B5563;
+            --color-border: #E5E7EB;
+            --radius-md: 12px;
+            
+            --method-get: #3B82F6;
+            --method-post: #10B981;
+            --method-patch: #F59E0B;
+            --method-delete: #EF4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--color-bg);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: var(--color-primary-dark);
+            margin-bottom: 8px;
+        }
+        
+        .note-card {
+            background: rgba(45, 106, 127, 0.05);
+            border-left: 4px solid var(--color-primary);
+            padding: 20px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            margin-bottom: 40px;
+            color: var(--color-primary-dark);
+            font-weight: 500;
+        }
+
+        .note-card code {
+            display: block;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            border: 1px solid rgba(45, 106, 127, 0.2);
+        }
+
+        .section-header {
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 10px;
+            margin: 40px 0 20px;
+            color: var(--color-primary);
+        }
+
+        .endpoint-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+
+        .endpoint-header {
+            padding: 16px 20px;
+            background: #FAFAFA;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .endpoint-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .method-badge {
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .method-badge.GET { background: var(--method-get); }
+        .method-badge.POST { background: var(--method-post); }
+        .method-badge.PATCH { background: var(--method-patch); }
+        .method-badge.DELETE { background: var(--method-delete); }
+
+        .endpoint-url {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+        
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        
+        .copy-btn:hover {
+            opacity: 1;
+            color: var(--color-primary);
+        }
+
+        .auth-badge {
+            background: #FEE2E2;
+            color: #B91C1C;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .endpoint-body {
+            padding: 24px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--color-text-secondary);
+        }
+
+        h4 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            color: var(--color-text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        pre {
+            background: #1E293B;
+            color: #F8FAFC;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .mb-4 { margin-bottom: 24px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1F2937;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>API Documentation</h1>
+        <p style="color: var(--color-text-secondary);">CollabSpace v1 REST API</p>
+    </div>
+
+    <div class="note-card">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <i data-lucide="shield-check" style="width: 20px; height: 20px;"></i>
+            <span>Authentication Requirement</span>
+        </div>
+        All endpoints (except login) require an Authorization header:
+        <code>Authorization: Bearer &lt;your_access_token&gt;</code>
+        Get your token from POST /api/v1/auth/login.
+    </div>
+
+    <!-- AUTHENTICATION -->
+    <h2 class="section-header">Authentication</h2>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge POST">POST</span>
+                <span class="endpoint-url" data-url="/api/v1/auth/login">/api/v1/auth/login</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Authenticate user with email and password to receive JWT tokens.</p>
+            
+            <div class="mb-4">
+                <h4>Request Body</h4>
+                <pre>{
+  "email": "user@example.com",
+  "password": "password123"
+}</pre>
+            </div>
+
+            <div>
+                <h4>Success Response</h4>
+                <pre>{
+  "success": true,
+  "data": {
+    "access_token": "eyJhb...",
+    "refresh_token": "eyJhb...",
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "user@example.com"
+    }
+  },
+  "error": null
+}</pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge POST">POST</span>
+                <span class="endpoint-url" data-url="/api/v1/auth/refresh">/api/v1/auth/refresh</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Refresh Token Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Exchange a valid refresh token for a new access token.</p>
+            <div>
+                <h4>Success Response</h4>
+                <pre>{
+  "success": true,
+  "data": { "access_token": "new_eyJhb..." },
+  "error": null
+}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- GROUPS -->
+    <h2 class="section-header">Groups</h2>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge GET">GET</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/">/api/v1/groups/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Auth Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Returns all groups the current user is a member of.</p>
+            <div>
+                <h4>Success Response</h4>
+                <pre>{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Project Alpha",
+      "member_count": 5,
+      "task_count": 12,
+      "user_role": "admin"
+    }
+  ],
+  "error": null
+}</pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge POST">POST</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/">/api/v1/groups/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Auth Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Create a new group. The creator automatically becomes an admin.</p>
+            <div class="mb-4">
+                <h4>Request Body</h4>
+                <pre>{
+  "name": "New Marketing Team",
+  "description": "Team collaboration space"
+}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASKS -->
+    <h2 class="section-header">Tasks</h2>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge GET">GET</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/:group_id/tasks/">/api/v1/groups/:group_id/tasks/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Auth Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Get all tasks for a specific group. User must be a group member.</p>
+            <div class="mb-4">
+                <h4>Query Parameters</h4>
+                <ul style="color: var(--color-text-secondary);">
+                    <li><code>?status=todo | in_progress | done</code> - Filter by status</li>
+                    <li><code>?assigned_to=me</code> - Filter tasks assigned to current user</li>
+                    <li><code>?sort=newest | oldest | deadline</code> - Sort order</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge PATCH">PATCH</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/:group_id/tasks/:task_id/">/api/v1/groups/:group_id/tasks/:task_id/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Editor/Admin Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Update an existing task. Only include fields you want to change.</p>
+            <div class="mb-4">
+                <h4>Request Body Example</h4>
+                <pre>{
+  "status": "done",
+  "assigned_to": 3
+}</pre>
+            </div>
+        </div>
+    </div>
+    
+    <!-- REPORTS & ACTIVITY -->
+    <h2 class="section-header">Reports & Activity</h2>
+
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge GET">GET</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/:group_id/report/">/api/v1/groups/:group_id/report/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Admin Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Returns full analytics and breakdown report natively mirroring the PDF specification payload in strict JSON structure.</p>
+            <div>
+                <h4>Response Structure</h4>
+                <pre>{
+  "success": true,
+  "data": {
+    "group": { "id": 1, "name": "Team" },
+    "summary": { "total_tasks": 10, "completion_rate": 80 },
+    "tasks": [...],
+    "members": [...],
+
+    "recent_activity": [...]
+  },
+  "error": null
+}</pre>
+            </div>
+        </div>
+    </div>
+    
+    <div class="endpoint-card">
+        <div class="endpoint-header">
+            <div class="endpoint-title">
+                <span class="method-badge GET">GET</span>
+                <span class="endpoint-url" data-url="/api/v1/groups/:group_id/activity/">/api/v1/groups/:group_id/activity/</span>
+                <button class="copy-btn" onclick="copyUrl(this)"><i data-lucide="copy" style="width: 16px; height: 16px;"></i></button>
+            </div>
+            <span class="auth-badge"><i data-lucide="lock" style="width: 12px; height: 12px;"></i> Auth Required</span>
+        </div>
+        <div class="endpoint-body">
+            <p class="description">Retrieve a paginated history feed mapped strictly per group activity boundaries.</p>
+            <div class="mb-4">
+                <h4>Query Parameters</h4>
+                <ul style="color: var(--color-text-secondary);">
+                    <li><code>?page=1</code> - Native pagination cursor</li>
+                    <li><code>?per_page=20</code> - Items returned bounded safely</li>
+                    <li><code>?filter=task | members</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="toast" class="toast">URL Copied!</div>
+
+<script>
+    lucide.createIcons();
+    
+    function copyUrl(btn) {
+        const urlStr = btn.previousElementSibling.getAttribute('data-url');
+        navigator.clipboard.writeText(urlStr).then(() => {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        });
+    }
+</script>
+</body>
+</html>

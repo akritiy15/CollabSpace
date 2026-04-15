@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Time Tracking - {{ group.name }}{% endblock %}
+{% block page_title %}Time Tracking — {{ group.name }}{% endblock %}
+
+{% block top_actions %}
+<div class="date-filters">
+    <button class="btn btn-sm btn-outline active">This Week</button>
+    <button class="btn btn-sm btn-outline">This Month</button>
+    <button class="btn btn-sm btn-outline">All Time</button>
+</div>
+<a href="{{ url_for('time_tracking.my_time', group_id=group.id) }}" class="btn btn-sm btn-primary">
+    <i data-lucide="clock"></i> My Time Logs
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Section 1: Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Total Time Logged</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">{{ stats.total_formatted }}</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Tasks Tracked</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.tasks_tracked_count }}</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Most Active Member</div>
+            <div style="font-size: 1.2rem; font-weight: 700;">
+                {% if stats.most_active_member %}
+                    {{ stats.most_active_member.username }} ({{ stats.most_active_member.formatted }})
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Daily Average</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ (stats.daily_average/60)|round(1) }}h</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Body -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+    <!-- Left Column: Member Breakdown & History -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Section 2: Member Time Breakdown -->
+        <div class="card">
+            <div class="card-header">Time by Member</div>
+            <div class="card-body" style="padding: 0;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--color-surface); text-align: left;">
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Member</th>
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Total Time</th>
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Tasks</th>
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary); width: 40%">Activity Bar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if stats.get('by_member') %}
+                            {% for m in stats.by_member %}
+                            <tr style="border-top: 1px solid var(--color-border);">
+                                <td style="padding: 12px 16px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <img src="{{ m.profile_picture or url_for('static', filename='img/default_avatar.png') }}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                        <span style="font-weight: 500; font-size: 0.9rem;">{{ m.username }}</span>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px 16px; font-size: 0.9rem; font-weight: 600;">{{ m.formatted }}</td>
+                                <td style="padding: 12px 16px; font-size: 0.9rem; color: var(--color-text-secondary);">{{ m.task_count }}</td>
+                                <td style="padding: 12px 16px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 8px; background: var(--color-surface); border-radius: 4px; overflow: hidden;">
+                                            <div class="member-color-{{ loop.index0 % 8 }}" style="width: {{ m.percentage_of_total }}%; height: 100%; border-radius: 4px;"></div>
+                                        </div>
+                                        <span style="font-size: 0.75rem; color: var(--color-text-secondary); width: 32px; text-align: right;">{{ m.percentage_of_total }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="4" style="padding: 24px; text-align: center; color: var(--color-text-secondary);">No member time tracked yet.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 4: History -->
+        <div class="card">
+            <div class="card-header">Recent Time Logs</div>
+            <div class="card-body" style="padding: 0;">
+                {% if recent_logs %}
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        {% for log in recent_logs %}
+                        <li id="log-item-{{ log.id }}" style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <img src="{{ log.user.profile_picture or url_for('static', filename='img/default_avatar.png') }}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
+                                    <span style="font-size: 0.85rem; font-weight: 600;">{{ log.user.username }}</span>
+                                    <span style="font-size: 0.85rem; color: var(--color-text-secondary);">logged</span>
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--color-primary);">{{ log.to_dict().duration_formatted }}</span>
+                                </div>
+                                
+                                {% if current_user.id == log.user_id or current_group_role == 'admin' %}
+                                <button class="btn btn-sm btn-icon log-delete-btn" data-log-id="{{ log.id }}" data-group-id="{{ group.id }}" style="color: var(--color-danger); border: none; background: transparent; padding: 4px;">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 4px;">
+                                <div>
+                                    <div style="font-size: 0.85rem;">Task: <strong>{{ log.task.title }}</strong></div>
+                                    {% if log.description %}
+                                        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">"{{ log.description }}"</div>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+                                    {{ log.logged_date.strftime('%b %d, %Y') }}
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div style="padding: 24px; text-align: center; color: var(--color-text-secondary);">No time logs found.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Task Breakdown & chart -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Section 5: Daily Chart -->
+        <div class="card">
+            <div class="card-header">Daily Activity (Last 30 Days)</div>
+            <div class="card-body chart-container" style="padding: 24px;">
+                <div class="daily-chart" style="display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 4px;">
+                    {% if stats.by_date %}
+                        {% set max_minutes = stats.by_date | map(attribute='minutes') | max %}
+                        {% for day in stats.by_date[-30:] %}
+                            {% set height_pct = (day.minutes / max_minutes * 100) if max_minutes > 0 else 0 %}
+                            <div class="chart-bar-wrapper" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                                <div class="chart-bar" style="width: 100%; min-width: 8px; height: {{ height_pct }}%; background: var(--color-primary); border-radius: 4px 4px 0 0; position: relative;" title="{{ day.formatted }} on {{ day.date }}"></div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="width: 100%; text-align: center; color: var(--color-text-secondary); align-self: center;">Not enough data yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Task Time Breakdown -->
+        <div class="card">
+            <div class="card-header">Time by Task</div>
+            <div class="card-body" style="padding: 0;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: var(--color-surface); text-align: left;">
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Task</th>
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Progress</th>
+                            <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Variance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if stats.by_task %}
+                            {% for tk in stats.by_task %}
+                            <tr style="border-top: 1px solid var(--color-border);">
+                                <td style="padding: 12px 16px;">
+                                    <div style="font-size: 0.9rem; font-weight: 500;">{{ tk.task_title }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); display: flex; gap: 8px; margin-top: 4px;">
+                                        <span><i data-lucide="clock" style="width: 12px; height: 12px; display: inline-block; vertical-align: -2px;"></i> {{ tk.formatted }}</span>
+                                        {% if tk.estimated_formatted %}
+                                        <span>/ {{ tk.estimated_formatted }} est.</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td style="padding: 12px 16px;">
+                                    {% if tk.estimated_minutes %}
+                                        {% set raw_pct = (tk.minutes_logged / tk.estimated_minutes * 100) %}
+                                        {% set display_pct = raw_pct if raw_pct <= 100 else 100 %}
+                                        <div class="task-progress-wrap" style="width: 100px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 4px;">
+                                                <span>{{ raw_pct|round|int }}%</span>
+                                                {% if raw_pct > 100 %}<span style="color: var(--color-danger);">Over</span>{% endif %}
+                                            </div>
+                                            <div style="height: 6px; background: var(--color-surface); border-radius: 3px; overflow: hidden;">
+                                                <div style="width: {{ display_pct }}%; height: 100%; background: {% if raw_pct > 100 %}var(--color-danger){% else %}var(--color-success){% endif %}; transition: width 0.3s ease;"></div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div style="width: 100px; height: 6px; background: var(--color-surface); border-radius: 3px; position: relative;">
+                                            <span style="position: absolute; width: 100%; text-align: center; top: -14px; font-size: 0.65rem; color: var(--color-text-muted);">No estimate</span>
+                                            <div style="width: 100%; height: 100%; background: var(--color-text-muted); opacity: 0.2"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 12px 16px;">
+                                    <span class="variance-pill variance-{{ tk.variance_status }}">
+                                        {% if tk.variance_status == 'under' %}
+                                            +{{ tk.variance_formatted }} rem.
+                                        {% elif tk.variance_status == 'over' %}
+                                            -{{ tk.variance_formatted }} over
+                                        {% elif tk.variance_status == 'on_track' %}
+                                            Met exactly
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="3" style="padding: 24px; text-align: center; color: var(--color-text-secondary);">No time tracked for tasks.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+    
+    // Delete log buttons
+    document.querySelectorAll('.log-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if(!confirm("Are you sure you want to delete this time log?")) return;
+            
+            const logId = this.dataset.logId;
+            const groupId = this.dataset.groupId;
+            const item = document.getElementById(`log-item-${logId}`);
+            
+            try {
+                const res = await fetch(`/groups/${groupId}/time/logs/${logId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+                });
+                const data = await res.json();
+                if(data.success) {
+                    item.style.opacity = '0';
+                    setTimeout(() => item.remove(), 300);
+                } else {
+                    alert(data.message || 'Error deleting log');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

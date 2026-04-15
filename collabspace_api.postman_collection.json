@@ -1,0 +1,206 @@
+{
+    "info": {
+        "name": "CollabSpace REST API v1",
+        "description": "Complete versioned API for the CollabSpace robust JWT micro-platform.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:5000",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "ENTER_YOUR_JWT_TOKEN",
+            "type": "string"
+        },
+        {
+            "key": "refresh_token",
+            "value": "ENTER_YOUR_REFRESH_TOKEN",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {"raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"]}
+                    }
+                },
+                {
+                    "name": "Refresh Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{refresh_token}}"}
+                        ],
+                        "url": {"raw": "{{base_url}}/api/v1/auth/refresh", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "refresh"]}
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                        ],
+                        "url": {"raw": "{{base_url}}/api/v1/auth/logout", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "logout"]}
+                    }
+                },
+                {
+                    "name": "My Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                        ],
+                        "url": {"raw": "{{base_url}}/api/v1/auth/me", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "me"]}
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Groups",
+            "item": [
+                {
+                    "name": "Get Groups",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {"raw": "{{base_url}}/api/v1/groups/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", ""]}
+                    }
+                },
+                {
+                    "name": "Create Group",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{access_token}}"},
+                            {"key": "Content-Type", "value": "application/json"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Engineering Squad\",\n    \"description\": \"Internal collaboration workspace\"\n}"
+                        },
+                        "url": {"raw": "{{base_url}}/api/v1/groups/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", ""]}
+                    }
+                },
+                {
+                    "name": "Get Group Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", ""]}
+                    }
+                },
+                {
+                    "name": "Get Members",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/members/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", "members", ""]}
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Tasks",
+            "item": [
+                {
+                    "name": "Get Tasks",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/groups/1/tasks/?status=todo&sort=deadline",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "v1", "groups", "1", "tasks", ""],
+                            "query": [
+                                {"key": "status", "value": "todo"},
+                                {"key": "sort", "value": "deadline"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Task",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{access_token}}"},
+                            {"key": "Content-Type", "value": "application/json"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"API Migration\",\n    \"description\": \"Migrate all legacy endpoints to v1 standard\",\n    \"deadline\": \"2025-12-31T23:59:59\"\n}"
+                        },
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/tasks/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", "tasks", ""]}
+                    }
+                },
+                {
+                    "name": "Update Task",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {"key": "Authorization", "value": "Bearer {{access_token}}"},
+                            {"key": "Content-Type", "value": "application/json"}
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"done\"\n}"
+                        },
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/tasks/5/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", "tasks", "5", ""]}
+                    }
+                },
+                {
+                    "name": "Delete Task",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/tasks/5/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", "tasks", "5", ""]}
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reports & Activity",
+            "item": [
+                {
+                    "name": "Get JSON Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {"raw": "{{base_url}}/api/v1/groups/1/report/", "host": ["{{base_url}}"], "path": ["api", "v1", "groups", "1", "report", ""]}
+                    }
+                },
+                {
+                    "name": "Get Activity Feed",
+                    "request": {
+                        "method": "GET",
+                        "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/groups/1/activity/?filter=task&page=1&per_page=10",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "v1", "groups", "1", "activity", ""],
+                            "query": [
+                                {"key": "filter", "value": "task"},
+                                {"key": "page", "value": "1"},
+                                {"key": "per_page", "value": "10"}
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

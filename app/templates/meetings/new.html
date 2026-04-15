@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}New Meeting Notes{% endblock %}
+{% block page_title %}New Meeting Notes{% endblock %}
+
+{% block content %}
+{% if not api_configured %}
+<div style="border: 2px solid #F59E0B; background:#FFFBEB; border-radius:8px; padding:16px; margin-bottom:24px;">
+    <h4 style="margin:0 0 8px 0; color:#B45309;"><i data-lucide="alert-triangle" style="width:16px; height:16px; margin-bottom:-2px;"></i> AI features are not configured</h4>
+    <p style="margin:0; font-size:13px; color:#92400E;">
+        Add ANTHROPIC_API_KEY to your .env file to enable AI task extraction. You can still save notes manually but AI extraction will not work.
+    </p>
+</div>
+{% endif %}
+
+<div class="meeting-new-layout">
+    <!-- LEFT COLUMN -->
+    <div class="meeting-input-panel">
+        <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label" style="font-weight:600;">Meeting Title <span style="color:#E74C3C">*</span></label>
+            <input type="text" id="meeting-title" class="form-control" placeholder="Sprint Planning &mdash; 15 Mar 2025" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label" style="font-weight:600;">Paste Your Meeting Notes <span style="color:#E74C3C">*</span></label>
+            <textarea id="meeting-notes" class="form-control ai-textarea" placeholder="Paste your raw meeting notes here...
+
+Example:
+John will handle the login page by Friday.
+Sarah needs to set up the database this week.
+We decided to use PostgreSQL over MySQL.
+Everyone should review the design doc by Monday.
+Alex will schedule the client call for next week."></textarea>
+        </div>
+        
+        <div class="ai-tips-box" style="margin-bottom:24px;">
+            <p style="margin:0 0 8px 0; font-weight:600; color:var(--color-navy);">Tips for better AI results:</p>
+            <ul style="margin:0; padding-left:16px;">
+                <li>Mention names with actions: 'Rahul will...'</li>
+                <li>Include deadlines: 'by Friday', 'next week'</li>
+                <li>Be specific about what needs to be done</li>
+                <li>The more detail, the better the extraction</li>
+            </ul>
+        </div>
+        
+        <button id="btn-analyze" class="btn btn-primary" style="width:100%; display:flex; justify-content:center; padding:12px; font-size:15px;">
+            <i data-lucide="sparkles"></i> Analyze with AI
+        </button>
+    </div>
+    
+    <!-- RIGHT COLUMN -->
+    <div class="meeting-results-panel" id="results-panel" style="display:none;">
+        
+        <!-- LOADING STATE -->
+        <div id="loading-state" style="display:none;">
+            <div style="margin-bottom:16px; font-weight:500; color:var(--color-text-secondary); display:flex; align-items:center; gap:8px;">
+                <i data-lucide="loader" class="spin"></i> AI is reading your notes...
+            </div>
+            <div class="placeholder-box" style="height:80px; margin-bottom:12px;"></div>
+            <div class="placeholder-box" style="height:40px; margin-bottom:12px;"></div>
+            <div class="placeholder-box" style="height:60px; margin-bottom:12px;"></div>
+        </div>
+        
+        <!-- ACTUAL RESULTS -->
+        <div id="actual-results" style="display:none;">
+            <div class="ai-summary-card" style="margin-bottom:24px;">
+                <div style="font-size:11px; font-weight:700; color:#8B5CF6; text-transform:uppercase; margin-bottom:8px;">Meeting Summary</div>
+                <div id="res-summary" style="font-size:13px; color:var(--color-navy); margin-bottom:12px;"></div>
+                
+                <div id="res-decisions-container" style="display:none;">
+                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:8px; margin-top:16px;">Key Decisions</div>
+                    <ul id="res-decisions" style="margin:0; padding-left:20px; font-size:12px;"></ul>
+                </div>
+            </div>
+            
+            <div id="tasks-section">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+                    <div>
+                        <h3 style="font-size:15px; font-weight:600; margin:0 0 4px 0;">AI found <span id="task-count">0</span> action items</h3>
+                        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Review and edit before creating</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:12px;">
+                    <a href="#" id="select-all" style="font-size:12px; text-decoration:none; margin-right:12px;">Select All</a>
+                    <a href="#" id="deselect-all" style="font-size:12px; text-decoration:none;">Deselect All</a>
+                </div>
+                
+                <div id="unassigned-warning" style="display:none; background:#FFFBEB; border:1px solid #F59E0B; border-radius:8px; padding:10px 14px; font-size:13px; color:#92400E; margin-bottom:16px;">
+                    &#9888; <span id="unassigned-count">0</span> tasks have no assignee. You can assign them later.
+                </div>
+                
+                <div id="tasks-container" style="margin-bottom:24px; max-height:400px; overflow-y:auto; padding-right:8px;"></div>
+                
+                <button id="btn-create-tasks" class="btn btn-primary" style="width:100%; justify-content:center;">
+                    Create <span id="btn-count">0</span> Selected Tasks
+                </button>
+                
+                <div id="success-box" style="display:none; margin-top:16px; background:#F0FDF4; border:1px solid #22C55E; color:#15803D; padding:16px; border-radius:8px; text-align:center;">
+                    <i data-lucide="check-circle" style="width:24px; height:24px; margin-bottom:8px;"></i><br>
+                    <strong><span id="succ-count">0</span> tasks created successfully!</strong><br>
+                    <span style="font-size:13px;">Taking you to tasks page...</span>
+                </div>
+            </div>
+            
+            <div id="no-tasks-box" style="display:none; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; padding:24px; text-align:center;">
+                <p style="font-weight:500; color:var(--color-navy); margin:0 0 8px 0;">No clear action items were found.</p>
+                <p style="font-size:13px; color:var(--color-text-secondary); margin:0;">Try adding more specific details like who is responsible for what and by when.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const members = {{ members_json|tojson|safe }};
+    let globalKeyDecisions = [];
+    let globalSummary = '';
+
+    document.getElementById('btn-analyze').addEventListener('click', async () => {
+        const title = document.getElementById('meeting-title').value.trim();
+        const notes = document.getElementById('meeting-notes').value.trim();
+        if(!title || !notes) {
+            window.showToast("Please provide both title and notes.", "error"); return;
+        }
+        if(notes.length < 30) {
+            window.showToast("Notes are too short.", "error"); return;
+        }
+        
+        document.getElementById('results-panel').style.display = 'block';
+        document.getElementById('loading-state').style.display = 'block';
+        document.getElementById('actual-results').style.display = 'none';
+        document.getElementById('btn-analyze').disabled = true;
+        
+        try {
+            const res = await fetch(`{{ url_for('meetings.analyze', group_id=group.id) }}`, {
+                method: 'POST',
+                headers:{ 'Content-Type':'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+                body: JSON.stringify({title: title, notes_text: notes})
+            });
+            const data = await res.json();
+            
+            if(!data.success) {
+                window.showToast(data.error, "error");
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('results-panel').style.display = 'none';
+                document.getElementById('btn-analyze').disabled = false;
+                return;
+            }
+            
+            renderResults(data.data);
+            
+        } catch(e) {
+            window.showToast("Analysis is taking too long. Please try again.", "error");
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('btn-analyze').disabled = false;
+        }
+    });
+
+    function renderResults(data) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('actual-results').style.display = 'block';
+        document.getElementById('btn-analyze').innerText = "Re-analyze with AI";
+        document.getElementById('btn-analyze').disabled = false;
+        
+        globalSummary = data.summary;
+        globalKeyDecisions = data.key_decisions || [];
+        
+        document.getElementById('res-summary').innerText = globalSummary;
+        
+        const decContainer = document.getElementById('res-decisions');
+        decContainer.innerHTML = '';
+        if(globalKeyDecisions.length > 0) {
+            document.getElementById('res-decisions-container').style.display = 'block';
+            globalKeyDecisions.forEach(d => {
+                const li = document.createElement('li');
+                li.innerText = d;
+                decContainer.appendChild(li);
+            });
+        } else {
+            document.getElementById('res-decisions-container').style.display = 'none';
+        }
+        
+        const tc = document.getElementById('tasks-container');
+        tc.innerHTML = '';
+        
+        if(!data.tasks || data.tasks.length === 0) {
+            document.getElementById('tasks-section').style.display = 'none';
+            document.getElementById('no-tasks-box').style.display = 'block';
+            return;
+        }
+        
+        document.getElementById('tasks-section').style.display = 'block';
+        document.getElementById('no-tasks-box').style.display = 'none';
+        
+        document.getElementById('task-count').innerText = data.tasks.length;
+        
+        data.tasks.forEach((t, i) => {
+            let options = '<option value="">Unassigned</option>';
+            members.forEach(m => {
+                let sel = (t.suggested_assignee_id && m.user_id == t.suggested_assignee_id) || 
+                          (t.suggested_assignee_name && m.user.username.toLowerCase() == t.suggested_assignee_name.toLowerCase()) ? 'selected' : '';
+                options += `<option value="${m.user_id}" ${sel}>${m.user.username}</option>`;
+            });
+            
+            let deadlineVal = '';
+            if(t.suggested_deadline_days) {
+                deadlineVal = t.suggested_deadline_days; // raw days input for form
+            }
+            
+            const pClass = 'priority-' + (t.priority ? t.priority.toLowerCase() : 'low');
+            
+            const html = `
+                <div class="ai-task-card ${pClass}" data-idx="${i}">
+                    <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:12px;">
+                        <input type="checkbox" class="task-cb" checked style="margin-top:4px;">
+                        <input type="text" class="task-title-input form-control" value="${t.title}" placeholder="Task title">
+                    </div>
+                    
+                    <div style="display:flex; gap:12px; margin-left:24px;">
+                        <select class="form-control task-assignee" style="flex:1; padding:4px 8px; font-size:12px; height:auto;">
+                            ${options}
+                        </select>
+                        <input type="number" class="form-control task-deadline-days" placeholder="Days to" value="${deadlineVal}" style="width:100px; padding:4px 8px; font-size:12px; height:auto;">
+                        <span class="badge" title="${t.reason}" style="cursor:help;">${t.priority || 'low'}</span>
+                    </div>
+                </div>
+            `;
+            tc.insertAdjacentHTML('beforeend', html);
+        });
+        
+        updateCounts();
+        
+        document.querySelectorAll('.task-cb, .task-assignee').forEach(el => {
+            el.addEventListener('change', updateCounts);
+        });
+    }
+    
+    document.getElementById('select-all').addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('.task-cb').forEach(c => c.checked = true);
+        updateCounts();
+    });
+    document.getElementById('deselect-all').addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('.task-cb').forEach(c => c.checked = false);
+        updateCounts();
+    });
+    
+    function updateCounts() {
+        let selected = 0;
+        let unassigned = 0;
+        document.querySelectorAll('.ai-task-card').forEach(card => {
+            const cb = card.querySelector('.task-cb').checked;
+            if(cb) {
+                selected++;
+                const assignee = card.querySelector('.task-assignee').value;
+                if(!assignee) unassigned++;
+            }
+        });
+        
+        document.getElementById('btn-count').innerText = selected;
+        document.getElementById('btn-create-tasks').disabled = selected === 0;
+        
+        if(unassigned > 0 && selected > 0) {
+            document.getElementById('unassigned-warning').style.display = 'block';
+            document.getElementById('unassigned-count').innerText = unassigned;
+        } else {
+            document.getElementById('unassigned-warning').style.display = 'none';
+        }
+    }
+    
+    document.getElementById('btn-create-tasks').addEventListener('click', async () => {
+        const selectedTasks = [];
+        document.querySelectorAll('.ai-task-card').forEach(card => {
+            if(card.querySelector('.task-cb').checked) {
+                selectedTasks.push({
+                    title: card.querySelector('.task-title-input').value.trim(),
+                    assigned_to: card.querySelector('.task-assignee').value || null,
+                    deadline_days: parseInt(card.querySelector('.task-deadline-days').value) || null
+                });
+            }
+        });
+        
+        const payload = {
+            title: document.getElementById('meeting-title').value.trim(),
+            notes_text: document.getElementById('meeting-notes').value.trim(),
+            summary: globalSummary,
+            key_decisions: globalKeyDecisions,
+            selected_tasks: selectedTasks
+        };
+        
+        document.getElementById('btn-create-tasks').disabled = true;
+        document.getElementById('btn-create-tasks').innerHTML = '<i data-lucide="loader" class="spin"></i> Creating...';
+        lucide.createIcons();
+        
+        try {
+            const res = await fetch(`{{ url_for('meetings.create_tasks', group_id=group.id) }}`, {
+                method: 'POST',
+                headers:{ 'Content-Type':'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if(data.success) {
+                document.getElementById('btn-create-tasks').style.display = 'none';
+                document.getElementById('success-box').style.display = 'block';
+                document.getElementById('succ-count').innerText = data.tasks_created;
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 1500);
+            } else {
+                window.showToast(data.error, "error");
+                document.getElementById('btn-create-tasks').disabled = false;
+                document.getElementById('btn-create-tasks').innerHTML = `Create Selected Tasks`;
+            }
+        } catch(e) {
+            window.showToast("Failed to create tasks.", "error");
+            document.getElementById('btn-create-tasks').disabled = false;
+        }
+    });
+
+</script>
+<style>
+    @keyframes pulse-shimmer {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    .placeholder-box {
+        background: #E5E7EB;
+        border-radius: 6px;
+        animation: pulse-shimmer 1.5s infinite ease-in-out;
+    }
+</style>
+{% endblock %}

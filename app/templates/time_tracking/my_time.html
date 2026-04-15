@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}My Time Logs - {{ group.name }}{% endblock %}
+{% block page_title %}My Time Logs{% endblock %}
+
+{% block top_actions %}
+<a href="{{ url_for('time_tracking.overview', group_id=group.id) }}" class="btn btn-sm btn-outline">
+    <i data-lucide="arrow-left"></i> Back to Overview
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Section 1: My Stats -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+    {% set now = namespace(today=none) %}
+    {% set week_mins = namespace(val=0) %}
+    {% set month_mins = namespace(val=0) %}
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Total Hours Logged</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">{{ stats.total_formatted }}</div>
+        </div>
+    </div>
+    
+    <!-- (Normally logic for Week/Month would be handled in backend, mimicking it simply as total for now or using the daily average) -->
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Daily Average</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ (stats.daily_average/60)|round(1) }}h</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Tasks Worked On</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.tasks_tracked_count }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Busiest Day</div>
+            <div style="font-size: 1.2rem; font-weight: 700;">
+                {% if stats.busiest_day %}
+                    {{ stats.busiest_day.date }} ({{ stats.busiest_day.formatted }})
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not current_user.mentor_profile and current_group_role != 'admin' %}
+<!-- Section 2: Log Time Form -->
+<div class="card" style="margin-bottom: 32px;">
+    <div class="card-body" style="padding: 24px;">
+        <h3 style="margin-bottom: 16px; font-size: 1.1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">Log Time</h3>
+        <form id="quick-log-form" style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--color-text-secondary);">Task</label>
+                <select id="log-task-id" class="form-input" style="width: 100%;" required>
+                    <option value="" disabled selected>Select assigned task...</option>
+                    {% for t in tasks_assigned %}
+                        {% if not t.is_completed %}
+                            <option value="{{ t.id }}">{{ t.title }}</option>
+                         {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="width: 120px;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--color-text-secondary);">Duration</label>
+                <input type="text" id="log-duration" class="form-input" style="width: 100%;" placeholder="e.g. 2h 30m" required>
+                <small style="color: var(--color-text-muted); font-size: 0.7rem;">Formats: 2h, 30m, 1.5h, 90</small>
+            </div>
+            
+            <div style="flex: 2; min-width: 250px;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--color-text-secondary);">Description (Optional)</label>
+                <input type="text" id="log-desc" class="form-input" style="width: 100%;" placeholder="What did you work on?">
+            </div>
+            
+            <div style="width: 140px;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--color-text-secondary);">Date</label>
+                <input type="date" id="log-date" class="form-input" style="width: 100%;" required>
+            </div>
+            
+            <div style="align-self: flex-start; margin-top: 22px;">
+                <button type="submit" class="btn btn-primary" id="log-submit-btn">Log Time</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom: 32px; padding: 24px; background: var(--color-surface);">
+    <h3 style="margin-bottom: 16px; font-size: 1.1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">Team Tracking Summary</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
+                <th style="padding: 8px;">Student</th>
+                <th style="padding: 8px;">Task</th>
+                <th style="padding: 8px;">Logged</th>
+                <th style="padding: 8px;">Time Variance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in stats.get('by_member', []) %}
+                {% for tk in stats.get('by_task', []) %}
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                        <td style="padding: 8px;">{{ m.username }}</td>
+                        <td style="padding: 8px;">{{ tk.task_title }}</td>
+                        <td style="padding: 8px;">{{ tk.formatted }}</td>
+                        <td style="padding: 8px;">
+                            {% set is_over = tk.variance_status == 'over' %}
+                            {% set over_mins = tk.variance_minutes %}
+                            {% if is_over %}
+                                {% if over_mins > 60 %}
+                                    <span style="color: #DC2626; font-weight: bold;">At Risk 🔴</span>
+                                {% else %}
+                                    <span style="color: #D97706; font-weight: bold;">Over Budget 🟡</span>
+                                {% endif %}
+                            {% else %}
+                                <span style="color: #059669; font-weight: bold;">On Track 🟢</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+            {% if not stats.get('by_member', []) %}
+                <tr><td colspan="4" style="padding: 16px; text-align: center; color: var(--color-text-secondary);">No time tracking data available yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+    <!-- Section 3: My Time Logs -->
+    <div class="card" style="align-self: flex-start;">
+        <div class="card-header">My Time Logs</div>
+        <div class="card-body" style="padding: 0;">
+            {% if recent_logs %}
+                {% set current_date = namespace(val=None) %}
+                {% set date_total = namespace(val=0) %}
+                
+                <div style="padding: 16px;">
+                {% for log in recent_logs %}
+                    {% if current_date.val != log.logged_date %}
+                        {% if current_date.val != None %}
+                            <div style="text-align: right; font-size: 0.85rem; font-weight: 600; padding: 8px 0 16px 0; color: var(--color-text-secondary); border-top: 1px dashed var(--color-border);">
+                                Total: {{ (date_total.val // 60) }}h {{ (date_total.val % 60) }}m
+                            </div>
+                        {% endif %}
+                        {% set current_date.val = log.logged_date %}
+                        {% set date_total.val = 0 %}
+                        <h4 style="font-size: 0.9rem; margin: 16px 0 8px 0; color: var(--color-primary); border-bottom: 1px solid var(--color-border); padding-bottom: 4px;">
+                            {{ log.logged_date.strftime('%A, %b %d, %Y') }}
+                        </h4>
+                    {% endif %}
+                    
+                    {% set date_total.val = date_total.val + log.duration_minutes %}
+                    
+                    <div id="my-log-item-{{ log.id }}" style="padding: 12px 0; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <a href="#" style="font-size: 0.9rem; font-weight: 500; text-decoration: none; color: var(--color-text);">{{ log.task.title }}</a>
+                            {% if log.description %}
+                                <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">{{ log.description }}</div>
+                            {% endif %}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 0.9rem; font-weight: 600;">{{ log.to_dict().duration_formatted }}</span>
+                            <button class="btn btn-sm btn-icon my-log-delete-btn" data-log-id="{{ log.id }}" style="color: var(--color-danger); padding: 2px;">
+                                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <!-- Final day total -->
+                <div style="text-align: right; font-size: 0.85rem; font-weight: 600; padding: 8px 0 0 0; color: var(--color-text-secondary); border-top: 1px dashed var(--color-border);">
+                    Total: {{ (date_total.val // 60) }}h {{ (date_total.val % 60) }}m
+                </div>
+                </div>
+            {% else %}
+                <div style="padding: 24px; text-align: center; color: var(--color-text-secondary);">No personal time logs found.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 4: My Task Summary -->
+    <div class="card" style="align-self: flex-start;">
+        <div class="card-header">Time Contribution by Task</div>
+        <div class="card-body" style="padding: 0;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--color-surface); text-align: left;">
+                        <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Task</th>
+                        <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">My Time / Total</th>
+                        <th style="padding: 12px 16px; font-weight: 500; font-size: 0.85rem; color: var(--color-text-secondary);">Contribution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if stats.by_task %}
+                        {% for tk in stats.by_task %}
+                        <tr style="border-top: 1px solid var(--color-border);">
+                            <td style="padding: 12px 16px;">
+                                <div style="font-size: 0.9rem; font-weight: 500;">{{ tk.task_title }}</div>
+                                <span class="badge badge-{{ tk.task_status }}">{{ tk.task_status.replace('_', ' ').title() }}</span>
+                            </td>
+                            <td style="padding: 12px 16px; font-size: 0.85rem;">
+                                <strong>{{ tk.formatted }}</strong> logged
+                                <br>
+                                <span style="color: var(--color-text-secondary);">
+                                {% if tk.estimated_minutes %}
+                                    Total Est: {{ tk.estimated_formatted }}
+                                {% else %}
+                                    No total estimate
+                                {% endif %}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 16px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="flex: 1; height: 6px; background: var(--color-surface); border-radius: 3px; overflow: hidden;">
+                                        <div style="width: 100%; height: 100%; background: var(--color-primary); border-radius: 3px;"></div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.7rem; color: var(--color-text-secondary); margin-top: 4px;">My log</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="3" style="padding: 24px; text-align: center; color: var(--color-text-secondary);">No tasks tracked.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+    const groupId = "{{ group.id }}";
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    
+    // Set default date to today
+    const dateInput = document.getElementById('log-date');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+        dateInput.max = today; // Disallow future dates via HTML5 max
+    }
+    
+    const quickLogForm = document.getElementById('quick-log-form');
+    if(quickLogForm) {
+        quickLogForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('log-submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Logging...';
+            
+            const taskId = document.getElementById('log-task-id').value;
+            const duration = document.getElementById('log-duration').value;
+            const desc = document.getElementById('log-desc').value;
+            const date = document.getElementById('log-date').value;
+            
+            try {
+                const res = await fetch(`/groups/${groupId}/tasks/${taskId}/time/log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({
+                        duration_formatted: duration,
+                        description: desc,
+                        logged_date: date
+                    })
+                });
+                
+                const data = await res.json();
+                if(data.success) {
+                    window.location.reload(); // Quick refresh to update tables
+                } else {
+                    alert(data.message || 'Error logging time');
+                    btn.disabled = false;
+                    btn.textContent = 'Log Time';
+                }
+            } catch(err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = 'Log Time';
+            }
+        });
+    }
+
+    document.querySelectorAll('.my-log-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if(!confirm("Are you sure you want to delete this time log?")) return;
+            const logId = this.dataset.logId;
+            try {
+                const res = await fetch(`/groups/${groupId}/time/logs/${logId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
+                const data = await res.json();
+                if(data.success) {
+                    const item = document.getElementById(`my-log-item-${logId}`);
+                    item.style.opacity = '0';
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    alert(data.message || 'Error deleting log');
+                }
+            } catch(err) {
+                console.error(err);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

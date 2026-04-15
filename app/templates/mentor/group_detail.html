@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% block title %}{{ detail.group.name }} \u2014 Student Detail{% endblock %}
+{% block page_title %}{{ detail.group.name }} \u2014 Student Detail{% endblock %}
+
+{% block top_actions %}
+<a href="{{ url_for('mentor.dashboard') }}" class="btn btn-secondary" style="margin-right: 8px;">
+    <i data-lucide="arrow-left"></i> Back to Dashboard
+</a>
+<a href="{{ url_for('mentor.group_report', group_id=detail.group.id) }}" class="btn btn-primary">
+    <i data-lucide="download"></i> Download Report
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.gd-top-section { margin-bottom: 24px; }
+.gd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.gd-title { margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: var(--color-navy); }
+.gd-desc { margin: 0; font-size: 14px; color: var(--color-gray-dark); max-width: 600px; line-height: 1.5; }
+.gd-health-badge {
+    padding: 12px 24px; border-radius: 12px; text-align: center;
+    background: {% if detail.health_score>=80 %}#E8F5E9{% elif detail.health_score>=50 %}#FFF8E1{% else %}#FFEBEE{% endif %};
+    border: 1px solid {% if detail.health_score>=80 %}#A5D6A7{% elif detail.health_score>=50 %}#FFE082{% else %}#FFCDD2{% endif %};
+}
+.gd-h-score { font-size: 32px; font-weight: 800; line-height: 1; color: {% if detail.health_score>=80 %}#27AE60{% elif detail.health_score>=50 %}#F39C12{% else %}#E74C3C{% endif %}; }
+.gd-h-status { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 4px; color: {% if detail.health_score>=80 %}#27AE60{% elif detail.health_score>=50 %}#F39C12{% else %}#E74C3C{% endif %}; }
+
+.gd-stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 32px; }
+.gd-stat-card { background: white; border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; text-align: center; }
+.gd-stat-num { font-size: 24px; font-weight: 700; color: var(--color-navy); margin-bottom: 4px; }
+.gd-stat-lbl { font-size: 12px; color: var(--color-gray-dark); text-transform: uppercase; font-weight: 600; }
+
+.gd-layout { display: grid; grid-template-columns: 65% 35%; gap: 24px; }
+@media (max-width: 900px) { .gd-layout { grid-template-columns: 1fr; } }
+
+.gd-card { background: white; border: 1px solid var(--color-border); border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+.gd-card-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); background: #F8FAFC; }
+.gd-card-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--color-navy); }
+.gd-card-body { padding: 20px; }
+
+.gd-student { display: flex; align-items: center; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid var(--color-border); margin-bottom: 20px; }
+.gd-student:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.gd-s-info { display: flex; align-items: center; gap: 12px; width: 25%; }
+.gd-s-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.gd-s-name { font-weight: 600; color: var(--color-navy); }
+.gd-s-progress { width: 40%; display: flex; align-items: center; gap: 12px; }
+.gd-s-stats { width: 35%; display: flex; justify-content: flex-end; gap: 16px; font-size: 12px; color: var(--color-gray-dark); }
+.gd-s-grade { padding: 4px 8px; border-radius: 4px; background: #E5E7EB; color: #4B5563; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.gd-grade-A { background: #E8F5E9; color: #2E7D32; }
+.gd-grade-B { background: #FFF8E1; color: #F57F17; }
+.gd-grade-C { background: #FFEBEE; color: #C62828; }
+
+.gd-task { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.gd-task:last-child { border-bottom: none; }
+.gd-task.overdue { border-left: 3px solid #E74C3C; padding-left: 12px; }
+.gd-task-status { width: 80px; text-align: center; padding: 4px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.st-todo { background: #F1F5F9; color: #64748B; }
+.st-prog { background: #FEF3C7; color: #D97706; }
+.st-done { background: #DCFCE7; color: #16A34A; }
+.gd-task-title { flex-grow: 1; font-size: 14px; font-weight: 500; color: var(--color-navy); }
+.gd-task-meta { font-size: 12px; color: var(--color-gray-dark); width: 120px; text-align: right; }
+
+.gd-act-item { display: flex; gap: 16px; margin-bottom: 16px; }
+.gd-act-icon { color: var(--color-primary); margin-top: 2px; }
+.gd-act-desc { font-size: 13px; color: var(--color-navy); margin-bottom: 4px; }
+.gd-act-time { font-size: 11px; color: var(--color-gray-dark); }
+
+.gd-qa-btn { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: #F8FAFC; border: 1px solid var(--color-border); border-radius: 8px; text-decoration: none; color: var(--color-navy); font-weight: 500; font-size: 14px; transition: all 0.2s; }
+.gd-qa-btn:hover { background: white; border-color: var(--color-primary); color: var(--color-primary); }
+</style>
+
+<div class="gd-top-section">
+    <div class="gd-header">
+        <div>
+            <h2 class="gd-title">{{ detail.group.name }}</h2>
+            <p class="gd-desc">{{ detail.group.description or 'No description provided.' }}</p>
+        </div>
+        <div class="gd-health-badge">
+            <div class="gd-h-score">{{ detail.health_score }}</div>
+            <div class="gd-h-status">{{ detail.health_status }}</div>
+        </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="gd-stats-row">
+        {% set total_completed = detail.all_tasks | selectattr('is_completed', 'equalto', true) | list | length %}
+        {% set total_tasks = detail.all_tasks | length %}
+        {% set overdue_count = 0 %}
+        {% for t in detail.all_tasks %}
+            {% if not t.is_completed and t.deadline and t.deadline.strftime('%Y-%m-%d %H:%M:%S') < now_local()|default('') %}
+                <!-- Very rough overdue since no explicit logic available in template -->
+            {% endif %}
+        {% endfor %}
+        <div class="gd-stat-card">
+            <div class="gd-stat-num">{{ total_tasks }}</div>
+            <div class="gd-stat-lbl">Total Tasks</div>
+        </div>
+        <div class="gd-stat-card">
+            <div class="gd-stat-num" style="color: #27AE60">{{ total_completed }}</div>
+            <div class="gd-stat-lbl">Completed</div>
+        </div>
+        <div class="gd-stat-card">
+            <div class="gd-stat-num" style="color: #E74C3C">{{ detail.time_stats.tasks_over_estimate | default(0) }}</div>
+            <div class="gd-stat-lbl">Over Estimate</div>
+        </div>
+        <div class="gd-stat-card">
+            {% set h = detail.time_stats.total_minutes // 60 %}
+            {% set m = detail.time_stats.total_minutes % 60 %}
+            <div class="gd-stat-num">{{ h }}h {{ m }}m</div>
+            <div class="gd-stat-lbl">Time Logged</div>
+        </div>
+        <div class="gd-stat-card">
+            <div class="gd-stat-num">{{ detail.meeting_notes|length }}</div>
+            <div class="gd-stat-lbl">Meetings</div>
+        </div>
+    </div>
+</div>
+
+<div class="gd-layout">
+    <!-- Left Column -->
+    <div>
+        <div class="gd-card">
+            <div class="gd-card-header">
+                <h3 class="gd-card-title">Student Performance</h3>
+            </div>
+            <div class="gd-card-body">
+                {% for st in detail.students %}
+                <div class="gd-student">
+                    <div class="gd-s-info">
+                        <div class="gd-s-avatar">
+                            {% if st.profile_picture %}
+                                <img src="{{ st.profile_picture }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                            {% else %}
+                                {{ st.username[:2]|upper }}
+                            {% endif %}
+                        </div>
+                        <div class="gd-s-name">{{ st.username }}</div>
+                    </div>
+                    
+                    <div class="gd-s-progress">
+                        <div class="progress-track">
+                            <div class="progress-fill {% if st.completion_rate>=80 %}green{% elif st.completion_rate>=50 %}amber{% else %}red{% endif %}" style="width: {{ st.completion_rate }}%"></div>
+                        </div>
+                        <div style="font-size:12px; font-weight:600; width:45px;">{{ st.completion_rate }}%</div>
+                    </div>
+                    
+                    <div class="gd-s-stats">
+                        <div>
+                            <strong>{{ st.tasks_completed }}/{{ st.tasks_assigned }}</strong><br>Tasks
+                        </div>
+                        <div>
+                            <strong>{{ st.time_logged_formatted }}</strong><br>Time
+                        </div>
+                    </div>
+                    
+                    <div>
+                        {% if st.completion_rate >= 80 %}
+                        <span class="gd-s-grade gd-grade-A">Excellent</span>
+                        {% elif st.completion_rate >= 50 %}
+                        <span class="gd-s-grade gd-grade-B">Average</span>
+                        {% else %}
+                        <span class="gd-s-grade gd-grade-C">Needs Work</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p style="color:var(--color-gray-dark); margin:0;">No student members in this group.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="gd-card">
+            <div class="gd-card-header">
+                <h3 class="gd-card-title">All Tasks</h3>
+            </div>
+            <div class="gd-card-body">
+                {% for t in detail.all_tasks %}
+                <div class="gd-task">
+                    <div class="gd-task-status {% if t.is_completed %}st-done{% elif t.status=='in_progress' %}st-prog{% else %}st-todo{% endif %}">
+                        {% if t.is_completed %}Done{% elif t.status=='in_progress' %}In Progress{% else %}To Do{% endif %}
+                    </div>
+                    <div class="gd-task-title">{{ t.title }}</div>
+                    <div class="gd-task-meta">
+                        {{ t.assignee.username if t.assignee else 'Unassigned' }}
+                    </div>
+                    <div class="gd-task-meta" style="color: {% if t.deadline %}var(--color-navy){% else %}var(--color-gray-dark){% endif %};">
+                        {% if t.deadline %}
+                            <span style="padding:2px 6px; border-radius:4px; font-weight:600; font-size:11px;
+                                {% if t.deadline_status == 'overdue' %}background:#FEE2E2; color:#B91C1C;
+                                {% elif t.deadline_status == 'critical' %}background:#FEF08A; color:#A16207;
+                                {% elif t.deadline_status == 'warning' %}background:#FEF9C3; color:#CA8A04;
+                                {% else %}background:#F8FAFC; color:#64748B;
+                                {% endif %}">{{ t.deadline.strftime('%d %b') }}</span>
+                        {% else %}
+                            No deadline
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p style="color:var(--color-gray-dark); margin:0; text-align:center;">No tasks have been created yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="gd-card">
+            <div class="gd-card-header">
+                <h3 class="gd-card-title">Meeting Notes ({{ detail.meeting_notes|length }} meetings)</h3>
+            </div>
+            <div class="gd-card-body">
+                {% if detail.meeting_notes %}
+                    <!-- Render meeting notes if implemented later -->
+                {% else %}
+                <div style="padding: 20px; text-align:center; background:#F8FAFC; border-radius:8px; border:1px dashed var(--color-border);">
+                    <p style="color:var(--color-gray-dark); margin:0; font-size:13px;">Meeting summaries will appear here once implemented.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <div class="gd-card">
+            <div class="gd-card-header">
+                <h3 class="gd-card-title">Quick Actions</h3>
+            </div>
+            <div class="gd-card-body" style="padding-bottom: 8px;">
+                <a href="{{ url_for('groups.dashboard', group_id=detail.group.id) }}" class="gd-qa-btn">
+                    <i data-lucide="external-link"></i> Open Group Dashboard
+                </a>
+                <a href="{{ url_for('mentor.group_report', group_id=detail.group.id) }}" class="gd-qa-btn">
+                    <i data-lucide="file-text"></i> Download PDF Report
+                </a>
+                <a href="{{ url_for('groups.dashboard', group_id=detail.group.id) }}" class="gd-qa-btn">
+                    <i data-lucide="check-square"></i> View All Tasks
+                </a>
+                <a href="#" class="gd-qa-btn" onclick="alert('Meeting feature not yet implemented'); return false;">
+                    <i data-lucide="video"></i> View Meeting Notes
+                </a>
+            </div>
+        </div>
+
+        {% with time_stats=detail.time_stats %}
+            {% include 'mentor/time_summary.partial.html' %}
+        {% endwith %}
+
+        <div class="gd-card">
+            <div class="gd-card-header">
+                <h3 class="gd-card-title">Recent Activity</h3>
+            </div>
+            <div class="gd-card-body">
+                {% for act in detail.activity_log %}
+                <div class="gd-act-item">
+                    <div class="gd-act-icon"><i data-lucide="activity" style="width:16px;height:16px;"></i></div>
+                    <div>
+                        <div class="gd-act-desc">
+                            <strong>{{ act.user.username if act.user else (act.member.user.username if act.member else 'System') }}</strong>
+                            {{ act.description|replace(act.user.username if act.user else '', '') }}
+                        </div>
+                        <div class="gd-act-time">{{ act.created_at.strftime('%d %b, %H:%M') }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color:var(--color-gray-dark); margin:0; font-size:13px;">No recent activity.</p>
+                {% endfor %}
+                {% if detail.activity_log|length == 20 %}
+                <div style="text-align:center; margin-top:20px;">
+                    <a href="{{ url_for('groups.dashboard', group_id=detail.group.id) }}" style="font-size:13px; color:var(--color-primary); font-weight:500; text-decoration:none;">View all activity &rarr;</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

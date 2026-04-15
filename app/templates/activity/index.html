@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Activity — {{ group.name }}{% endblock %}
+{% block page_title %}Activity{% endblock %}
+
+{% block top_actions %}
+<div id="live-indicator-container" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; background: var(--color-surface); padding: 4px 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border); color: var(--color-text-secondary);">
+    <div id="live-dot" style="width: 8px; height: 8px; background: var(--color-text-muted); border-radius: 50%;"></div>
+    <span id="live-text">Connecting...</span>
+</div>
+{% endblock %}
+
+{% block content %}
+{% macro render_activity_entry(act) %}
+    {% set conf = ACTIVITY_CONFIG.get(act.action_type.lower(), {'icon': 'activity', 'color': 'gray', 'label': 'performed an action'}) %}
+    <div class="timeline-entry" data-id="{{ act.id }}" style="position: relative; z-index: 1; display: flex; gap: 16px; margin-bottom: 24px; animation: slideInTop 0.3s ease-out;">
+        <!-- Icon Circle -->
+        <div class="activity-{{ conf.color }}" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 0 4px var(--color-bg); position: relative; z-index: 2;">
+            <i data-lucide="{{ conf.icon }}" style="width: 16px; height: 16px;"></i>
+        </div>
+        
+        <!-- Content Card -->
+        <div class="card" style="flex: 1;">
+            <div class="card-body" style="padding: 16px;">
+                <div style="display: flex; justify-content: space-between; gap: 16px; align-items: start;">
+                    <div>
+                        <div style="margin-bottom: 4px; font-size: 0.95rem;">
+                            <span style="font-weight: 600; color: var(--color-text-primary);">{{ act.user.username if act.user else 'Unknown' }}</span>
+                            <span style="color: var(--color-text-secondary);"> {{ conf.label }}</span>
+                        </div>
+                        {% if act.description %}
+                        <div style="font-weight: 500; font-size: 0.95rem; color: var(--color-text-primary);">{{ act.description }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="timestamp" data-time="{{ act.created_at.isoformat() }}" title="{{ act.created_at.strftime('%Y-%m-%d %H:%M:%S') }}" style="font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap; padding-top: 2px;">
+                        {{ act.get_relative_timestamp() }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+<div style="max-width: 600px; margin: 0 auto;">
+    
+    <!-- Filter Bar -->
+    <div style="display: flex; gap: 8px; margin-bottom: 32px; overflow-x: auto; padding-bottom: 8px;">
+        <a href="?filter=all" class="btn btn-sm {% if current_filter == 'all' %}btn-primary{% else %}btn-secondary{% endif %}" style="border-radius: 999px;">All</a>
+        <a href="?filter=tasks" class="btn btn-sm {% if current_filter == 'tasks' %}btn-primary{% else %}btn-secondary{% endif %}" style="border-radius: 999px;">Tasks</a>
+        <a href="?filter=members" class="btn btn-sm {% if current_filter == 'members' %}btn-primary{% else %}btn-secondary{% endif %}" style="border-radius: 999px;">Members</a>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline" id="activity-timeline" style="position: relative; margin-left: 16px;">
+        <!-- The vertical line -->
+        <div style="position: absolute; left: 15px; top: 0; bottom: 0; width: 2px; background: var(--color-border); z-index: 0;"></div>
+        
+        <div id="feed-container">
+        {% if activities %}
+            {% set current_date = None %}
+            {% for act in activities %}
+                {% set act_date = act.created_at.date() %}
+                
+                {% if act_date != current_date %}
+                    {% set current_date = act_date %}
+                    <div class="timeline-date-separator" style="position: relative; z-index: 1; text-align: center; margin: 24px 0;">
+                        <span style="background: var(--color-surface); padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; border: 1px solid var(--color-border);">
+                            {{ act_date.strftime('%b %d') }}
+                        </span>
+                    </div>
+                {% endif %}
+                
+                {{ render_activity_entry(act) }}
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="position: relative; z-index: 1; background: var(--color-bg);">
+                <i data-lucide="activity" class="empty-state-icon"></i>
+                <h3 class="empty-state-title">No Activity Yet</h3>
+                <p class="empty-state-desc">Actions performed in this group will appear here.</p>
+            </div>
+        {% endif %}
+        </div>
+    </div>
+    
+    {% if total_count > 20 %}
+    <div style="text-align: center; margin-top: 32px;">
+        <button class="btn btn-secondary" id="load-more-btn" onclick="loadMoreActivity()" style="background: white; z-index: 1; position: relative; padding: 10px 24px;">Load More</button>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>window.GROUP_ID = {{ group.id }};</script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<script>
+let lastPolledObjId = null;
+
+function loadMoreActivity() {
+    window.showToast("Load more appends next 20 entries.", "info");
+    // Standard pagination AJAX goes here
+}
+
+setInterval(() => {
+    document.querySelectorAll('.timestamp').forEach(el => {
+        const timeStr = el.getAttribute('data-time');
+        if (timeStr) {
+            const date = new Date(timeStr);
+            const now = new Date();
+            const diff = (now.getTime() - date.getTime()) / 1000;
+            
+            let text = "";
+            if (diff < 60) text = "just now";
+            else if (diff < 3600) { const m = Math.floor(diff/60); text = `${m} minute${m!=1?'s':''} ago`; }
+            else if (diff < 86400) { const h = Math.floor(diff/3600); text = `${h} hour${h!=1?'s':''} ago`; }
+            else if (diff < 2592000) { const d = Math.floor(diff/86400); text = `${d} day${d!=1?'s':''} ago`; }
+            else { const mo = Math.floor(diff/2592000); text = `${mo} month${mo!=1?'s':''} ago`; }
+            
+            el.textContent = text;
+        }
+    });
+}, 60000);
+</script>
+{% endblock %}

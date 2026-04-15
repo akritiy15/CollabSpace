@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard - CollabSpace{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 24px;">
+    <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 8px;">{{ greeting }}, {{ current_user.username }}!</h2>
+    <div><span class="badge" style="background: rgba(74, 144, 164, 0.1); color: var(--color-primary); padding: 4px 12px; font-size: 0.85rem;">Student</span></div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+    <div class="card" style="padding: 16px; display: flex; align-items: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(74, 144, 164, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+            <i data-lucide="check-square" style="color: var(--color-primary);"></i>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">{{ stats.assigned }}</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Tasks Assigned</div>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px; display: flex; align-items: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(39, 174, 96, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+            <i data-lucide="check-circle" style="color: #27AE60;"></i>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">{{ stats.completed }}</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Tasks Completed</div>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px; display: flex; align-items: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(243, 156, 18, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+            <i data-lucide="clock" style="color: #F39C12;"></i>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">{{ stats.hours_week }}</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Hours This Week</div>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px; display: flex; align-items: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(231, 76, 60, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+            <i data-lucide="calendar" style="color: #E74C3C;"></i>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary);">{{ stats.upcoming }}</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Upcoming Deadlines</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- My Tasks -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>My Tasks</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            {% if my_tasks %}
+                <ul style="list-style: none; margin: 0; padding: 0;">
+                {% for t in my_tasks %}
+                    <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 1rem; color: var(--color-text-primary); margin-bottom: 4px;">{{ t.title }}</div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">
+                                Project: <a href="/groups/{{ t.group_id }}" style="color: inherit; text-decoration: underline;">{{ t.group.name if t.group else 'Unknown' }}</a>
+                                {% if t.approval_status == 'pending' %}
+                                    &bull; <span style="color: #F39C12;">⏳ Awaiting Approval</span>
+                                {% elif t.approval_status == 'changes_requested' %}
+                                    &bull; <span style="color: #E74C3C;">↩ Changes Requested</span>
+                                {% endif %}
+                                {% if t.deadline %}
+                                    {% set d_color = '#E74C3C' if (t.deadline.date() < now().date() and not t.is_completed) else 'inherit' %}
+                                    &bull; <span {{ 'style="color: ' ~ d_color ~ ';"'|safe }}>Due: {{ t.deadline.strftime('%b %d') }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            {% if t.is_completed %}
+                                <span class="badge badge-success">Done</span>
+                            {% else %}
+                                <span class="badge {% if t.status == 'in_progress' %}badge-warning{% else %}badge-secondary{% endif %}">{{ t.status|replace('_', ' ')|title }}</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">
+                    No tasks assigned to you right now.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Performance and Time Log -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <div class="card">
+            <div class="card-header">Time Log (This Week)</div>
+            <div class="card-body" style="padding: 0;">
+                {% if time_logs %}
+                    <ul style="list-style: none; margin: 0; padding: 0;">
+                    {% for l in time_logs %}
+                        <li style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 500; font-size: 0.9rem;">{{ l.task.title if l.task else 'Unknown Task' }}</div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-secondary);">{{ l.logged_date.strftime('%a, %b %d') }}</div>
+                            </div>
+                            <div style="font-weight: 600; color: var(--color-text-primary);">{{ (l.duration_minutes // 60)|string ~ 'h ' ~ (l.duration_minutes % 60)|string ~ 'm' }}</div>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                    <div style="padding: 12px 16px; font-weight: 600; text-align: right; border-top: 1px solid var(--color-border);">
+                        Total: {{ stats.hours_week }}
+                    </div>
+                {% else %}
+                    <div style="padding: 24px; text-align: center; color: var(--color-text-secondary); font-size: 0.9rem;">
+                        No time logged this week.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">My Performance</div>
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: var(--color-text-secondary);">Completion Rate</span>
+                    <span style="font-weight: 600;">{{ stats.comp_rate }}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: var(--color-text-secondary);">On Time Rate</span>
+                    <span style="font-weight: 600;">{{ stats.ontime_rate }}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: var(--color-text-secondary);">Total Hours Logged</span>
+                    <span style="font-weight: 600;">{{ stats.total_hours }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 12px; margin-top: 8px;">
+                    <span style="color: var(--color-text-secondary);">Estimated Grade</span>
+                    {% set g_color = '#27AE60' if stats.grade == 'A' else ('#4A90A4' if stats.grade == 'B' else ('#F39C12' if stats.grade in ['C','D'] else '#E74C3C')) %}
+                    <span {{ 'style="font-weight: 700; font-size: 1.5rem; color: ' ~ g_color ~ ';"'|safe }}>{{ stats.grade }}</span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} - CollabSpace{% endblock %}
+{% block page_title %}{{ group.name }}{% endblock %}
+
+{% block top_actions %}
+    <a href="{{ url_for('time_tracking.overview', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="clock"></i> Time Tracking
+    </a>
+    <a href="{{ url_for('meetings.index', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="notebook"></i> Meeting Notes
+    </a>
+    {% if current_group_role == 'admin' %}
+    <a href="{{ url_for('reports.preview', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="file-text"></i> Download Report
+    </a>
+    {% endif %}
+    {% if current_group_role in ['admin', 'editor'] %}
+    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-sm btn-primary">
+        <i data-lucide="user-plus"></i> Invite Members
+    </a>
+    {% endif %}
+    {% if current_group_role == 'admin' %}
+    <a href="{{ url_for('groups.settings', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="settings"></i> Settings
+    </a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<p style="color: var(--color-text-secondary); margin-top: -16px; margin-bottom: 24px; max-width: 800px;">
+    {{ group.description or 'No description provided.' }}
+</p>
+
+<!-- Quick Stats -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Members</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ members|length }}</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Total Tasks</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ group.tasks.count() }}</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="padding: 16px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 8px;">Completed Tasks</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{{ completed_tasks }}</div>
+        </div>
+    </div>
+    
+
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: Tasks & Polls -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Recent Tasks -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Recent Tasks</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if tasks %}
+                    {% for task in tasks %}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 12px;">
+                        <input type="checkbox" {% if task.is_completed %}checked{% endif %} disabled style="width: 18px; height: 18px;">
+                        <div style="flex: 1;">
+                            <h4 style="font-size: 0.95rem; font-weight: 500; margin-bottom: 4px; {% if task.is_completed %}text-decoration: line-through; color: var(--color-text-muted);{% endif %}">{{ task.title }}</h4>
+                            <span class="badge badge-{% if task.is_completed %}done{% else %}in-progress{% endif %}" style="font-size: 0.7rem;">
+                                {% if task.is_completed %}Done{% else %}In Progress{% endif %}
+                            </span>
+                        </div>
+                        {% if task.assignee %}
+                        <img src="{{ task.assignee.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                             title="{{ task.assignee.username }}"
+                             style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--color-border);">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No tasks created yet.</div>
+                {% endif %}
+            </div>
+            <div style="padding: 12px 16px; background: var(--color-surface); text-align: center; border-top: 1px solid var(--color-border);">
+                <a href="{{ url_for('tasks.index', group_id=group.id) }}" class="btn btn-sm btn-secondary" style="width: 100%; border: none; background: transparent; display: block;">View All Tasks</a>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- Right Column: Members & Activity Feed -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Members Panel -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Members ({{ members|length }})</span>
+                <span id="online-count-badge" class="badge badge-admin" style="display: none; font-size: 0.7rem;">0 online</span>
+            </div>
+            <div class="card-body" id="dashboard-members-panel" style="padding: 0;">
+                {% for member in members[:5] %}
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="position: relative;">
+                            <img src="{{ member.user.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                                 style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                            <span class="presence-dot-status offline" data-user-id="{{ member.user.id }}"></span>
+                        </div>
+                        <span style="font-weight: 500; font-size: 0.9rem;">{{ member.user.username }}</span>
+                    </div>
+                    <span class="badge badge-{{ member.role }}">{{ member.role|title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="padding: 12px 16px; background: var(--color-surface); text-align: center; border-top: 1px solid var(--color-border);">
+                <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-sm btn-secondary" style="width: 100%; border: none; background: transparent;">Manage Members</a>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+            <div class="card-header">Activity Feed</div>
+            <div class="card-body" id="dashboard-feed-container" style="padding: 0; max-height: 400px; overflow-y: auto;">
+                {% if activities %}
+                    {% for act in activities[:10] %}
+                    {% set conf = ACTIVITY_CONFIG.get(act.action_type.lower(), {'icon': 'activity', 'color': 'gray', 'label': 'performed an action'}) %}
+                    <div class="dashboard-activity-entry" style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; gap: 12px;">
+                        <div class="activity-{{ conf.color }}" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+                            <i data-lucide="{{ conf.icon }}" style="width: 12px;"></i>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.85rem; margin-bottom: 4px; line-height: 1.4;">
+                                <span style="font-weight: 600;">{{ act.user.username if act.user else 'Unknown' }}</span> {{ conf.label }}
+                            </p>
+                            <p class="timestamp" data-time="{{ act.created_at.isoformat() }}" style="font-size: 0.7rem; color: var(--color-text-muted);">{{ act.get_relative_timestamp() }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div id="dashboard-empty-feed" style="padding: 24px; text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">
+                        No activity yet.
+                    </div>
+                {% endif %}
+            </div>
+            </div>
+            <div style="padding: 12px 16px; background: var(--color-surface); text-align: center; border-top: 1px solid var(--color-border);">
+                <a href="{{ url_for('activity.index', group_id=group.id) }}" class="btn btn-sm btn-secondary" style="width: 100%; border: none; background: transparent; display: block;">View All Activity</a>
+            </div>
+        </div>
+
+        <!-- This Week's Time mini-section -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="clock" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
+                    This Week's Time
+                </span>
+                {% if time_stats %}
+                <span class="badge badge-admin">{{ top_3_this_week|length }} active</span>
+                {% endif %}
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if top_3_this_week %}
+                    {% for tm in top_3_this_week %}
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <img src="{{ tm.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                                 style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                            <span style="font-weight: 500; font-size: 0.9rem;">{{ tm.username }}</span>
+                        </div>
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--color-primary);">{{ tm.formatted }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 24px; text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">
+                        No time logged this week.
+                    </div>
+                {% endif %}
+            </div>
+            <div style="padding: 12px 16px; background: var(--color-surface); text-align: center; border-top: 1px solid var(--color-border);">
+                <a href="{{ url_for('time_tracking.overview', group_id=group.id) }}" class="btn btn-sm btn-secondary" style="width: 100%; border: none; background: transparent; display: block;">View Time Tracking</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

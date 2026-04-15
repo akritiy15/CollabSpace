@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Group Settings — {{ group.name }}{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block top_actions %}
+    <a href="{{ url_for('groups.dashboard', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="arrow-left"></i> Back
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; margin-bottom: 32px;">
+    <div class="card-header">Edit Group Info</div>
+    <div class="card-body">
+        <form action="{{ url_for('groups.settings', group_id=group.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label" for="name">Group Name</label>
+                <input type="text" id="name" name="name" class="form-control" value="{{ group.name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="description">Description</label>
+                <textarea id="description" name="description" class="form-control" rows="4">{{ group.description or '' }}</textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto; border-color: #FECACA;">
+    <div class="card-header" style="background: #FEF2F2; color: #DC2626; border-bottom-color: #FECACA;">Danger Zone</div>
+    <div class="card-body" style="background: #FFF5F5;">
+        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 8px;">Leave Group</h4>
+        <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 16px;">
+            If you leave, you will lose access to all tasks and data in this group. 
+            If you are the only admin, you must promote someone else first.
+        </p>
+        <form action="{{ url_for('groups.leave', group_id=group.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to leave this group?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger">Leave Group</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

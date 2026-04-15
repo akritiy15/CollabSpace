@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Notification Preferences{% endblock %}
+{% block page_title %}Notification Preferences{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+      <h2 class="text-xl font-semibold text-gray-900">Email Notifications</h2>
+      <p class="text-gray-500 mt-1 text-sm">Choose what events you want to be notified about by email.</p>
+    </div>
+    
+    <div class="p-6 space-y-6">
+      
+      <!-- Task Assignment -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium text-gray-900">Task Assignments</h3>
+          <p class="text-sm text-gray-500 mt-1">Get an email when someone assigns a task to you.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="task_assignment_emails" class="sr-only peer" {% if prefs.task_assignment_emails %}checked{% endif %} onchange="updatePref('task_assignment_emails', this.checked)">
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+        </label>
+      </div>
+      
+      <hr class="border-gray-100">
+
+      <!-- Deadline Reminder -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium text-gray-900">Deadline Reminders</h3>
+          <p class="text-sm text-gray-500 mt-1">Get an email 24 hours before a task you're assigned to is due.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="deadline_reminder_emails" class="sr-only peer" {% if prefs.deadline_reminder_emails %}checked{% endif %} onchange="updatePref('deadline_reminder_emails', this.checked)">
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+        </label>
+      </div>
+
+      <hr class="border-gray-100">
+
+      <!-- Weekly Summary -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium text-gray-900">Weekly Summaries</h3>
+          <p class="text-sm text-gray-500 mt-1">Receive a weekly digest of group stats and activity (Admins only).</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="weekly_summary_emails" class="sr-only peer" {% if prefs.weekly_summary_emails %}checked{% endif %} onchange="updatePref('weekly_summary_emails', this.checked)">
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+        </label>
+      </div>
+
+      <hr class="border-gray-100">
+
+      <!-- Member Joined -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium text-gray-900">Member Joined</h3>
+          <p class="text-sm text-gray-500 mt-1">Get an email when a new member joins your group (Admins only).</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="member_joined_emails" class="sr-only peer" {% if prefs.member_joined_emails %}checked{% endif %} onchange="updatePref('member_joined_emails', this.checked)">
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+        </label>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePref(key, value) {
+  fetch("{{ url_for('profile.notifications') }}", {
+      method: "POST",
+      headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({ [key]: value })
+  })
+  .then(response => response.json())
+  .then(data => {
+      if(data.success) {
+          showToast('Preferences saved successfully', 'success');
+      } else {
+          showToast('Failed to save preferences', 'error');
+          // Revert toggle
+          document.getElementById(key).checked = !value;
+      }
+  })
+  .catch(err => {
+      console.error(err);
+      showToast('An error occurred', 'error');
+      document.getElementById(key).checked = !value;
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% macro render_enrollment_number(profile, current_user_type) %}
+    {% if current_user_type in ['mentor', 'admin', 'team_leader'] %}
+        <div style="font-weight: 500; font-size: 0.9rem;">Enrollment Number</div>
+        <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ profile.enrollment_number or 'Not provided' }}</div>
+    {% else %}
+        <div style="font-weight: 500; font-size: 0.9rem;">Enrollment Number</div>
+        <div style="color: var(--color-text-secondary); margin-bottom: 12px;"><i>Hidden for privacy</i></div>
+    {% endif %}
+{% endmacro %}
+
+{% block title %}{{ target_user.username }}'s Profile - CollabSpace{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: Avatar & Stats -->
+    <div class="card" style="text-align: center; padding-top: 32px;">
+        <div style="position: relative; width: 120px; height: 120px; margin: 0 auto 16px;">
+            <img src="{{ target_user.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                 style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid var(--color-surface);">
+        </div>
+        
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            {{ target_user.username }}
+            {% if connection_status == 'connected' %}
+                <span class="badge badge-editor" style="font-size: 0.65rem;">Connection</span>
+            {% endif %}
+        </h2>
+        
+        <p style="font-size: 0.9rem; color: var(--color-text-primary); padding: 0 24px; margin-bottom: 24px;">
+            {{ target_user.bio or 'No bio provided yet.' }}
+        </p>
+        
+        <div style="display: flex; border-top: 1px solid var(--color-border); margin-top: auto;">
+            <div style="flex: 1; padding: 16px 0; border-right: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 1.1rem;">{{ friends|length }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Connections</div>
+            </div>
+            <div style="flex: 1; padding: 16px 0;">
+                <div style="font-weight: 700; font-size: 1.1rem;">{{ mutual_count }}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Mutual Groups</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Tabs -->
+    <div>
+        <div class="tabs" style="display: flex; gap: 16px; border-bottom: 1px solid var(--color-border); margin-bottom: 24px;">
+            <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+            {% if target_user.account_type == 'student' %}
+            <button class="tab-btn" onclick="switchTab('academic')">Academic Details</button>
+            <button class="tab-btn" onclick="switchTab('tasks')">Tasks</button>
+            <button class="tab-btn" onclick="switchTab('time')">Time Logs</button>
+            {% if current_user.account_type in ['mentor', 'team_leader', 'admin'] %}
+            <button class="tab-btn" onclick="switchTab('scores')">Scores</button>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div id="tab-overview" class="tab-content" style="display: block;">
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-body" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="font-size: 1.1rem; font-weight: 600;">Connection Status</h3>
+                        <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px;">
+                            {% if connection_status == 'connected' %}You are connected with {{ target_user.username }}
+                            {% elif connection_status == 'pending_sent' %}Connection request sent
+                            {% elif connection_status == 'pending_received' %}{{ target_user.username }} sent you a connection request
+                            {% else %}You are not connected with {{ target_user.username }}{% endif %}
+                        </p>
+                    </div>
+                    
+                    <div id="friend-actions">
+                        {% if connection_status == 'none' %}
+                            <button class="btn btn-primary" onclick="sendRequest({{ target_user.id }})">
+                                <i data-lucide="user-plus"></i> Connect
+                            </button>
+                        {% elif connection_status == 'pending_sent' %}
+                            <button class="btn btn-secondary" disabled>Request Pending</button>
+                        {% elif connection_status == 'connected' %}
+                            <button class="btn btn-danger" onclick="removeMember({{ target_user.id }})">
+                                <i data-lucide="user-minus"></i> Remove Connection
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if target_user.account_type == 'student' %}
+        <!-- Academic details tab -->
+        <div id="tab-academic" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">Academic Profile</div>
+                <div class="card-body">
+                    {% if academic_profile %}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <div style="font-weight: 500; font-size: 0.9rem;">Institution</div>
+                                <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ academic_profile.institution or 'Not provided' }}</div>
+                                
+                                <div style="font-weight: 500; font-size: 0.9rem;">Branch/Course</div>
+                                <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ academic_profile.branch or 'Not provided' }}</div>
+                                
+                                {{ render_enrollment_number(academic_profile, current_user.account_type) }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 500; font-size: 0.9rem;">Semester</div>
+                                <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ academic_profile.semester or 'Not provided' }}</div>
+                                
+                                <div style="font-weight: 500; font-size: 0.9rem;">Admission Year</div>
+                                <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ academic_profile.admission_year or 'Not provided' }}</div>
+                                
+                                <div style="font-weight: 500; font-size: 0.9rem;">Availability</div>
+                                <div style="color: var(--color-text-secondary); margin-bottom: 12px;">{{ academic_profile.availability_hours_per_week ~ ' hours/week' if academic_profile.availability_hours_per_week else 'Not provided' }}</div>
+                            </div>
+                        </div>
+
+                        {% if academic_profile.linkedin_url or academic_profile.github_url %}
+                        <div style="border-top: 1px solid var(--color-border); margin-top: 16px; padding-top: 16px;">
+                            <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 12px;">Links</h4>
+                            <div style="display: flex; gap: 12px;">
+                                {% if academic_profile.linkedin_url %}
+                                    <a href="{{ academic_profile.linkedin_url }}" target="_blank" class="btn btn-sm btn-secondary"><i data-lucide="link"></i> LinkedIn</a>
+                                {% endif %}
+                                {% if academic_profile.github_url %}
+                                    <a href="{{ academic_profile.github_url }}" target="_blank" class="btn btn-sm btn-secondary"><i data-lucide="github"></i> GitHub</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div style="text-align: center; color: var(--color-text-secondary); padding: 24px;">No academic profile details have been filled out yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-tasks" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">Assigned Tasks</div>
+                <div class="card-body" style="padding: 0;">
+                    {% if user_tasks %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for t in user_tasks %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 500; font-size: 1rem;"><a href="/groups/{{ t.group_id }}" style="color: inherit; text-decoration: none;">{{ t.title }}</a></div>
+                                    <div style="font-size: 0.8rem; color: var(--color-text-secondary);">in {{ t.group.name if t.group else 'Unknown' }}</div>
+                                </div>
+                                <div>
+                                    {% if t.is_completed %}
+                                        <span class="badge" style="background:#E8F5E9; color:#2E7D32;">Completed</span>
+                                    {% else %}
+                                        <span class="badge" style="background:#F3E5F5; color:#7B1FA2;">{{ t.status|title }}</span>
+                                    {% endif %}
+                                    {% if t.deadline %}
+                                        <span class="badge" style="
+                                            {% if t.deadline_status == 'overdue' %}background:#FEE2E2; color:#B91C1C;
+                                            {% elif t.deadline_status == 'critical' %}background:#FEF08A; color:#A16207;
+                                            {% elif t.deadline_status == 'warning' %}background:#FEF9C3; color:#CA8A04;
+                                            {% else %}background:#F8FAFC; color:#64748B;
+                                            {% endif %}">Due {{ t.deadline.strftime('%d %b') }}</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No tasks assigned currently.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-time" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">Time Logs (By Project)</div>
+                <div class="card-body" style="padding: 0;">
+                    {% if project_times %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for pt in project_times %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div><div style="font-weight: 500; font-size: 1rem;">{{ pt.group_name }}</div></div>
+                                <div style="font-weight: 600; color: var(--color-text-primary);">{{ pt.formatted }}</div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No time logged yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.account_type in ['mentor', 'team_leader', 'admin'] %}
+        <div id="tab-scores" class="tab-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">Performance Scores
+                    <span style="float: right; font-size: 12px; font-weight: normal; color: var(--color-text-muted);">Visible only to Mentors</span>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    {% if user_scores %}
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                        {% for score in user_scores %}
+                            <li style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 500; font-size: 1rem;">{{ score.group.name if score.group else 'Unknown' }} - {{ score.sprint_label or 'Overall' }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Calculated: {{ score.calculated_at.strftime('%d %b %Y') if score.calculated_at else 'Unknown' }}</div>
+                                    <div style="font-size: 0.85rem; color: var(--color-text-muted); margin-top:4px;">
+                                        Tasks: {{ score.tasks_score|round(1) }}% | Hours: {{ score.hours_score|round(1) }}% | Peer: {{ score.peer_score|round(1) }}% | Mentor: {{ score.mentor_rating|round(1) }}%
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 18px; font-weight: 700; color: var(--color-primary);">{{ score.final_score|round(1) }}%</div>
+                                    <div style="font-size: 10px; color: var(--color-text-muted);">Final Score</div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="padding: 32px; text-align: center; color: var(--color-text-secondary);">No performance scores available yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% endif %}
+
+    </div>
+</div>
+
+<style>
+.tab-btn {
+    background: none; border: none; padding: 8px 16px; font-size: 1rem; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500;
+}
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+    
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-' + tabId).style.display = 'block';
+}
+
+function sendRequest(userId) {
+    fetch(`/members/request/${userId}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Connection request sent!", "success");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message, "error");
+        }
+    });
+}
+function removeMember(userId) {
+    if(!window.confirmAction("Are you sure you want to remove this connection?")) return;
+    fetch(`/members/remove/${userId}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Connection removed.", "info");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message, "error");
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "emails/base_email.html" %}
+
+{% block email_subject %}Weekly Summary — {{ group_name }}{% endblock %}
+
+{% block email_content %}
+<p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">Hi {{ username }},</p>
+<p style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 24px;">Here is your weekly summary for <strong>{{ group_name }}</strong> ({{ date_range }}).</p>
+
+<!-- 4 Stat Boxes (Table Layout) -->
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 24px;">
+  <tr>
+    <td style="padding: 10px; width: 25%; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+      <h3 style="margin: 0; margin-bottom: 4px; font-size: 20px; color: #4A90A4;">{{ stats.tasks_created }}</h3>
+      <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase;">Tasks Created</p>
+    </td>
+    <td style="padding: 10px; width: 25%; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; border-left: none;">
+      <h3 style="margin: 0; margin-bottom: 4px; font-size: 20px; color: #10b981;">{{ stats.tasks_completed }}</h3>
+      <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase;">Completed</p>
+    </td>
+    <td style="padding: 10px; width: 25%; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; border-left: none;">
+      <h3 style="margin: 0; margin-bottom: 4px; font-size: 20px; color: #f59e0b;">{{ stats.new_members }}</h3>
+      <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase;">New Members</p>
+    </td>
+    <td style="padding: 10px; width: 25%; text-align: center; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; border-left: none;">
+      <h3 style="margin: 0; margin-bottom: 4px; font-size: 20px; color: #ef4444;">{{ stats.expenses_added }}</h3>
+      <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase;">Expenses</p>
+    </td>
+  </tr>
+</table>
+
+{% if top_performer %}
+<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 16px; margin-bottom: 24px; text-align: center;">
+  <p style="margin: 0; margin-bottom: 10px; font-size: 12px; color: #166534; font-weight: bold; text-transform: uppercase;">Top Performer This Week</p>
+  <div style="display: inline-block; width: 40px; height: 40px; border-radius: 20px; background-color: #22c55e; color: white; line-height: 40px; font-weight: bold; font-size: 16px; margin-bottom: 8px;">
+    {{ top_performer.username[0]|upper }}
+  </div>
+  <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b;">{{ top_performer.username }}</p>
+  <p style="margin: 0; font-size: 14px; color: #475569;">{{ top_performer.completed_count }} tasks completed</p>
+</div>
+{% endif %}
+
+{% if recent_activity %}
+<h4 style="margin: 0; margin-bottom: 12px; color: #334155; font-size: 14px;">Recent Activity</h4>
+<ul style="margin: 0; margin-bottom: 24px; padding-left: 20px; color: #475569; font-size: 13px;">
+  {% for activity in recent_activity %}
+    <li style="margin-bottom: 6px;">
+      <strong>{{ activity.user.username if activity.user else 'System' }}</strong> {{ activity.description }}
+      <span style="color: #94a3b8; font-size: 11px;">({{ activity.created_at.strftime('%a, %I:%M %p') }})</span>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; box-sizing: border-box; width: 100%; margin-bottom: 24px;" width="100%">
+  <tbody>
+    <tr>
+      <td align="center" style="font-family: sans-serif; font-size: 14px; vertical-align: top; padding-bottom: 15px;" valign="top">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
+          <tbody>
+            <tr>
+              <td style="font-family: sans-serif; font-size: 14px; vertical-align: top; border-radius: 6px; text-align: center; background-color: #4A90A4;" valign="top" align="center" bgcolor="#4A90A4">
+                <a href="{{ report_url }}" target="_blank" style="border: solid 1px #4A90A4; border-radius: 6px; box-sizing: border-box; cursor: pointer; display: inline-block; font-size: 14px; font-weight: bold; margin: 0; padding: 12px 24px; text-decoration: none; background-color: #4A90A4; border-color: #4A90A4; color: #ffffff;">View Full Report</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-family: sans-serif; font-size: 11px; font-weight: normal; margin: 0; color: #94a3b8; text-align: center;">
+  This summary is sent every Monday at 9am.
+</p>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Members - CollabSpace{% endblock %}
+{% block page_title %}Members{% endblock %}
+
+{% block content %}
+<!-- Search Bar Section -->
+<div class="card" style="margin-bottom: 32px; overflow: visible;">
+    <div class="card-body" style="padding: 16px;">
+        <div style="position: relative;">
+            <i data-lucide="search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted);"></i>
+            <input type="text" id="member-search" class="form-control" placeholder="Search users by name or email..." style="padding-left: 48px; border-radius: 20px;">
+            
+            <!-- Search Results Dropdown -->
+            <div id="search-results" style="display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 50; max-height: 300px; overflow-y: auto;">
+                <!-- Rendered by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+    
+    <!-- Left Column: Members List -->
+    <div>
+        <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">My Connections ({{ friends|length }})</h3>
+        
+        {% if friends %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+                {% for member in friends %}
+                <div class="card" style="text-align: center;">
+                    <div class="card-body">
+                        <img src="{{ member.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                             style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid var(--color-surface);">
+                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 16px;">{{ member.username }}</h4>
+                        
+                        <div style="display: flex; gap: 8px; justify-content: center;">
+                            <a href="/profile/{{ member.username }}" class="btn btn-sm btn-secondary">Profile</a>
+                            <button class="btn btn-sm btn-secondary" onclick="removeMember('{{ member.id }}')" style="color: var(--color-danger); border-color: var(--color-danger);">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card empty-state">
+                <i data-lucide="users" class="empty-state-icon"></i>
+                <h3 class="empty-state-title">No connections yet</h3>
+                <p class="empty-state-desc">Search for users above to connect with them and collaborate.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Requests -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Pending Received -->
+        <div class="card">
+            <div class="card-header">Pending Requests</div>
+            <div class="card-body" style="padding: 0;">
+                {% if received_reqs %}
+                    {% for req in received_reqs %}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 12px;">
+                        <img src="{{ req.sender.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                        <div style="flex: 1;">
+                            <h4 style="font-size: 0.95rem; font-weight: 600; margin: 0;">{{ req.sender.username }}</h4>
+                            <span style="font-size: 0.75rem; color: var(--color-text-muted);">{{ req.created_at.strftime('%b %d') }}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <button class="btn btn-sm btn-primary" onclick="acceptRequest('{{ req.id }}')">Accept</button>
+                            <button class="btn btn-sm btn-secondary" onclick="rejectRequest('{{ req.id }}')">Reject</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 24px; text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">
+                        No pending requests.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sent Requests -->
+        {% if sent_reqs %}
+        <div class="card">
+            <div class="card-header">Sent Requests</div>
+            <div class="card-body" style="padding: 0;">
+                {% for req in sent_reqs %}
+                <div style="padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="{{ req.receiver.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                             style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                        <span style="font-size: 0.9rem; font-weight: 500;">{{ req.receiver.username }}</span>
+                    </div>
+                    <span class="badge badge-todo">Pending</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let searchTimeout;
+const csrfToken = "{{ csrf_token() }}";
+const searchInput = document.getElementById('member-search');
+const resultsBox = document.getElementById('search-results');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const q = this.value.trim();
+        
+        if(!q) {
+            resultsBox.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/members/search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => {
+                if(data.length === 0) {
+                    resultsBox.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--color-text-secondary);">No users found.</div>';
+                } else {
+                    resultsBox.innerHTML = '';
+                    data.forEach(user => {
+                        const avatarStr = user.avatar ? user.avatar : "{{ url_for('static', filename='img/default_avatar.png') }}";
+                        const item = document.createElement('div');
+                        item.style.cssText = "padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;";
+                        item.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <img src="${avatarStr}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                                <span style="font-weight: 500;">${user.username}</span>
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="sendReq(${user.id})">Add</button>
+                        `;
+                        resultsBox.appendChild(item);
+                    });
+                }
+                resultsBox.style.display = 'block';
+            });
+        }, 300);
+    });
+}
+
+// Hide search results when clicking outside
+document.addEventListener('click', (e) => {
+    if(searchInput && resultsBox && !searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+        resultsBox.style.display = 'none';
+    }
+});
+
+function sendReq(userId) {
+    fetch(`/members/request/${userId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Connection request sent!", "success");
+            resultsBox.style.display = 'none';
+            searchInput.value = '';
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message, "error");
+        }
+    });
+}
+
+function acceptRequest(reqId) {
+    fetch(`/members/accept/${reqId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Request accepted!", "success");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message || "Error", "error");
+        }
+    });
+}
+
+function rejectRequest(reqId) {
+    if(!window.confirmAction("Reject request?")) return;
+    fetch(`/members/reject/${reqId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Request rejected.", "info");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message || "Error", "error");
+        }
+    });
+}
+
+function removeMember(userId) {
+    if(!window.confirmAction("Remove connection?")) return;
+    fetch(`/members/remove/${userId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken } })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Connection removed.", "info");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message, "error");
+        }
+    });
+}
+</script>
+{% endblock %}

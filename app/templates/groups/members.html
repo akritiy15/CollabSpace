@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Members — {{ group.name }}{% endblock %}
+{% block page_title %}Members{% endblock %}
+
+{% block top_actions %}
+    <a href="{{ url_for('groups.dashboard', group_id=group.id) }}" class="btn btn-sm btn-secondary">
+        <i data-lucide="arrow-left"></i> Back to Group
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 32px;">
+    <div class="card-header">Group Members</div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;"></th>
+                    <th>User</th>
+                    <th>Joined</th>
+                    <th>Role</th>
+                    {% if current_group_role == 'admin' %}
+                    <th style="text-align: right;">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in group.members.all() %}
+                <tr>
+                    <td>
+                        <img src="{{ member.user.profile_picture or url_for('static', filename='img/default_avatar.png') }}" 
+                             style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                    </td>
+                    <td style="font-weight: 500;">
+                        {{ member.user.username }}
+                        {% if member.user_id == current_user.id %} <span style="color: var(--color-text-muted); font-weight: 400;">(You)</span>{% endif %}
+                    </td>
+                    <td style="color: var(--color-text-secondary); font-size: 0.9rem;">{{ member.joined_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if current_group_role == 'admin' and member.user_id != current_user.id %}
+                        <!-- Admin can change roles -->
+                        <select class="form-control" style="width: auto; padding: 4px 8px; font-size: 0.85rem;" onchange="changeRole({{ member.user_id }}, this.value)">
+                            <option value="viewer" {% if member.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                            <option value="editor" {% if member.role == 'editor' %}selected{% endif %}>Editor</option>
+                            <option value="admin" {% if member.role == 'admin' %}selected{% endif %}>Admin</option>
+                        </select>
+                        {% else %}
+                        <span class="badge badge-{{ member.role }}">{{ member.role|title }}</span>
+                        {% endif %}
+                    </td>
+                    {% if current_group_role == 'admin' %}
+                    <td style="text-align: right;">
+                        {% if member.user_id != current_user.id %}
+                        <button class="btn btn-sm btn-secondary" style="color: var(--color-danger); border-color: var(--color-danger);" onclick="removeMember({{ member.user_id }})">
+                            Remove
+                        </button>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if current_group_role in ['admin', 'editor'] %}
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">Invite Members</div>
+    <div class="card-body">
+        <p style="margin-bottom: 16px; color: var(--color-text-secondary);">Share this invite code with others to join the group.</p>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+            <div style="flex: 1; padding: 12px 16px; background: var(--color-surface); border: 1px dashed var(--color-primary); border-radius: var(--radius-md); font-family: monospace; font-size: 1.25rem; font-weight: 600; text-align: center; letter-spacing: 2px;" id="invite-code-display">
+                {{ group.invite_code }}
+            </div>
+            <button class="btn btn-primary" onclick="copyInviteCode()">
+                <i data-lucide="copy"></i> Copy
+            </button>
+        </div>
+        
+        {% if current_group_role == 'admin' %}
+        <div style="border-top: 1px solid var(--color-border); padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: var(--color-text-secondary);">If the code is compromised, you can generate a new one.</span>
+            <button class="btn btn-sm btn-secondary" onclick="regenerateCode()">Regenerate Code</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeRole(userId, newRole) {
+    fetch(`/groups/{{ group.id }}/change-role/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+        body: JSON.stringify({ new_role: newRole })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Role updated.", "success");
+        } else {
+            window.showToast(data.message, "error");
+            setTimeout(() => window.location.reload(), 1000); 
+        }
+    });
+}
+
+function removeMember(userId) {
+    if(!window.confirmAction("Are you sure you want to remove this member?")) return;
+    fetch(`/groups/{{ group.id }}/remove-member/${userId}`, { 
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            window.showToast("Member removed.", "info");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            window.showToast(data.message, "error");
+        }
+    });
+}
+
+function copyInviteCode() {
+    const code = document.getElementById('invite-code-display').innerText.trim();
+    navigator.clipboard.writeText(code).then(() => {
+        window.showToast("Invite code copied to clipboard!", "success");
+    }).catch(() => {
+        window.showToast("Failed to copy", "error");
+    });
+}
+
+function regenerateCode() {
+    if(!window.confirmAction("Generate new code? Old code will stop working.")) return;
+    fetch(`/groups/{{ group.id }}/regenerate-invite`, { 
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.success) {
+            document.getElementById('invite-code-display').innerText = data.new_code;
+            window.showToast("New code generated.", "success");
+        } else {
+            window.showToast("Error generating code.", "error");
+        }
+    });
+}
+</script>
+{% endblock %}
