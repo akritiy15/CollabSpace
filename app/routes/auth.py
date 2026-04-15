@@ -12,6 +12,8 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard.index'))
         return render_template('auth/register.html')
 
     data = request.form if request.form else request.json
@@ -60,6 +62,8 @@ def register():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard.index'))
         # Clear the google oauth token forcing a fresh login prompt at Google
         session.pop('google_oauth_token', None)
         return render_template('auth/login.html')

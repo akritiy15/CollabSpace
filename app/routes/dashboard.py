@@ -12,7 +12,6 @@ from sqlalchemy import or_
 dashboard_bp = Blueprint('dashboard', __name__)
 
 @dashboard_bp.route('/dashboard')
-@dashboard_bp.route('/')
 @login_required
 def index():
     if current_user.account_type == 'mentor' or getattr(current_user, 'mentor_profile', None):

@@ -87,6 +87,10 @@ def create_app(config_name='default'):
     # Import models so migrations detect them
     from app import models
     from app.models.user import User
+    
+    # Auto-create all database tables if they do not exist
+    with app.app_context():
+        db.create_all()
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -130,5 +134,10 @@ def create_app(config_name='default'):
     # Register web route blueprints
     from app.routes import register_routes
     register_routes(app)
+
+    @app.route('/')
+    def root():
+        from flask import redirect, url_for
+        return redirect(url_for('auth.login'))
 
     return app
