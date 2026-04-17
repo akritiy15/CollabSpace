@@ -1,5 +1,11 @@
 # CollabSpace
 
+
+## 🚀 Live Demo
+👉 [Click here to view the project](https://collabspace-barr.onrender.com/)
+
+
+
 **CollabSpace** is a comprehensive, role-based project management and student evaluation platform. Designed for academic and collaborative environments, it provides real-time task tracking, automated grading algorithms, time monitoring, and AI-assisted tools for cross-functional teams consisting of Students, Team Leaders, and Mentors.
 
 ---
