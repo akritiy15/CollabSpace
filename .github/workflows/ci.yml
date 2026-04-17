@@ -28,15 +28,17 @@ jobs:
         echo "JWT_SECRET_KEY=test-jwt-secret" >> $GITHUB_ENV
     
     - name: Run tests
-      run: pytest tests/ -v --tb=short
+      run: |
+         export PYTHONPATH=$PYTHONPATH:./collabspace
+         pytest collabspace/tests/ -v --tb=short
     
     - name: Generate coverage report
-      run: |
-        pip install coverage
-        coverage run -m pytest tests/
-        coverage report -m
-        coverage xml
-    
+  run: |
+    pip install coverage
+    export PYTHONPATH=$PYTHONPATH:./collabspace
+    coverage run -m pytest collabspace/tests/
+    coverage report -m
+    coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:

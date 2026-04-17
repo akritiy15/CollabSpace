@@ -107,5 +107,33 @@ The application will be available locally at `http://localhost:5000`.
 
 ---
 
+## 📁 Folder Structure
+
+```text
+collabspace/
+│
+├── app/                        # Main Application Package
+│   ├── api/                    # API Endpoints (v1)
+│   ├── models/                 # SQLAlchemy Database Models (user, task, etc.)
+│   ├── routes/                 # Flask Blueprints (auth, dashboard, tasks, etc.)
+│   ├── sockets/                # Flask-SocketIO event handlers for WebSockets
+│   ├── static/                 # Static assets (CSS, JS, images)
+│   ├── tasks/                  # Celery background tasks (email_tasks.py)
+│   ├── templates/              # Jinja2 HTML Templates
+│   └── utils/                  # Helper Python scripts (score engine, decorators, AI parsing)
+│
+├── tests/                      # Pytest automation suite and mock data
+├── migrations/                 # Alembic Database Migration files (auto-generated)
+├── venv/                       # Python Virtual Environment
+│
+├── requirements.txt            # Python Dependencies
+├── config.py                   # Application configuration (Dev/Testing/Production modes)
+├── run.py                      # Application Entry Point
+├── celery_worker.py            # Entry point for Celery Background Workers
+└── .env                        # Private Environment Variables
+```
+
+---
+
 ## 🛡️ License
 [Insert License details here, e.g., MIT, Proprietary, etc.]

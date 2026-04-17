@@ -93,7 +93,7 @@
             <div class="card mb-4">
                 <div class="card-header">Academic & Professional Details</div>
                 <div class="card-body">
-                    <form action="/api/profile/academic" method="POST" id="academic-form">
+                    <form action="{{ url_for('profile.update_academic') }}" method="POST" id="academic-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                             <div class="form-group">
@@ -259,7 +259,7 @@ function saveAcademicProfile() {
     const form = document.getElementById('academic-form');
     const formData = new FormData(form);
     
-    fetch('/api/profile/academic', {
+    fetch("{{ url_for('profile.update_academic') }}", {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token() }}'
